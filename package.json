@@ -17,6 +17,7 @@
     "mcp": "node --experimental-strip-types src/mcp/server.ts",
     "cli": "node --experimental-strip-types src/cli/index.ts",
     "web": "node --experimental-strip-types src/web/server.ts",
+    "site:dev": "node site/serve.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "eslint .",
