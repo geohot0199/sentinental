@@ -248,3 +248,5 @@ against the final code so the PR history shows the resolution.
 ## License
 
 MIT — see [LICENSE](LICENSE).
+
+<!-- qodo wiring check -->
