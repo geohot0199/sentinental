@@ -10,6 +10,9 @@ stops and asks a human before it opens the pull request.
 
 </div>
 
+**🌐 Landing page:** <https://geohot0199.github.io/sentinental/> — what it does, the full
+install, every configuration variable, and the download.
+
 ---
 
 ## The problem
@@ -201,6 +204,7 @@ src/
   harness/    agent spec, provisioning, the shared session runner
   cli/        terminal client
   web/        HTTP API + browser console
+site/         static landing page (published to GitHub Pages)
 tests/        93 unit tests
 scripts/      secret scanner, MCP probe, mock model, e2e approval test
 docs/         architecture and rejected alternatives
@@ -209,6 +213,23 @@ docs/         architecture and rejected alternatives
 Both clients drive the same `SentinelRunner`. That is deliberate: a divergence
 between two front ends on approval handling would be a genuine safety bug, so
 there is only one implementation of it.
+
+## Landing page
+
+`site/` is a standalone static page — no build step, no dependencies. It carries
+the overview, the full install (including the packaged CLI from the release),
+every environment variable, the safety model and the download links.
+
+```bash
+npm run site:dev        # http://localhost:4321
+```
+
+It is published to GitHub Pages by [`.github/workflows/pages.yml`](.github/workflows/pages.yml)
+whenever `site/` changes on `main`. The automation account that opens our pull
+requests cannot commit under `.github/workflows/`, so the file lives in
+[`ci/pages.yml`](ci/pages.yml) until it is enabled — see
+[`ci/README.md`](ci/README.md). Every download button points at GitHub — the page itself
+handles no secrets and stores nothing.
 
 ---
 

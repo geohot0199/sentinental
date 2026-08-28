@@ -29,3 +29,27 @@ npm run typecheck
 npm test
 npm audit --audit-level=high
 ```
+
+## Landing page deployment
+
+`pages.yml` publishes the static landing page in `site/` to GitHub Pages. It has
+no build step — it uploads the folder as-is.
+
+```bash
+cp ci/pages.yml .github/workflows/pages.yml
+git add .github/workflows/pages.yml
+git commit -m "ci: publish the landing page to GitHub Pages"
+```
+
+Then set **Settings → Pages → Source** to **GitHub Actions**.
+
+Until that is done, the page can be published from a branch instead:
+**Settings → Pages → Source → Deploy from a branch**, pick the branch and the
+`/site` folder. `site/.nojekyll` is included so GitHub serves the files exactly
+as they are.
+
+Preview it locally at any time with:
+
+```bash
+npm run site:dev        # http://localhost:4321
+```
