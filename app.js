@@ -238,6 +238,104 @@
     }
   }
 
+  /* --------------------------------------------------- particle canvas */
+  var particlesCanvas = $("#particlesCanvas");
+  if (particlesCanvas && typeof window.requestAnimationFrame === "function" && !reduceMotion) {
+    var ctx = particlesCanvas.getContext("2d");
+    var particles = [];
+    var particleCount = 60;
+
+    function resizeParticles() {
+      var hero = particlesCanvas.parentElement;
+      if (!hero) return;
+      particlesCanvas.width = hero.offsetWidth;
+      particlesCanvas.height = hero.offsetHeight;
+    }
+
+    function createParticle() {
+      return {
+        x: Math.random() * particlesCanvas.width,
+        y: Math.random() * particlesCanvas.height,
+        size: Math.random() * 1.5 + 0.3,
+        speedX: (Math.random() - 0.5) * 0.3,
+        speedY: (Math.random() - 0.5) * 0.3,
+        opacity: Math.random() * 0.5 + 0.1,
+      };
+    }
+
+    function initParticles() {
+      resizeParticles();
+      particles = [];
+      for (var i = 0; i < particleCount; i++) {
+        particles.push(createParticle());
+      }
+    }
+
+    function drawParticles() {
+      ctx.clearRect(0, 0, particlesCanvas.width, particlesCanvas.height);
+      for (var i = 0; i < particles.length; i++) {
+        var p = particles[i];
+        p.x += p.speedX;
+        p.y += p.speedY;
+        if (p.x < 0 || p.x > particlesCanvas.width) p.speedX *= -1;
+        if (p.y < 0 || p.y > particlesCanvas.height) p.speedY *= -1;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fillStyle = "rgba(34, 211, 238, " + p.opacity + ")";
+        ctx.fill();
+      }
+      // Draw connection lines between close particles
+      for (var a = 0; a < particles.length; a++) {
+        for (var b = a + 1; b < particles.length; b++) {
+          var dx = particles[a].x - particles[b].x;
+          var dy = particles[a].y - particles[b].y;
+          var dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < 120) {
+            ctx.beginPath();
+            ctx.moveTo(particles[a].x, particles[a].y);
+            ctx.lineTo(particles[b].x, particles[b].y);
+            ctx.strokeStyle = "rgba(34, 211, 238, " + (0.06 * (1 - dist / 120)) + ")";
+            ctx.lineWidth = 0.5;
+            ctx.stroke();
+          }
+        }
+      }
+      window.requestAnimationFrame(drawParticles);
+    }
+
+    initParticles();
+    drawParticles();
+    window.addEventListener("resize", resizeParticles);
+  }
+
+  /* -------------------------------------------------- animated counters */
+  var statEls = $$(".stat dt[data-count]");
+  if (statEls.length > 0 && "IntersectionObserver" in window && !reduceMotion) {
+    var counterObserver = new IntersectionObserver(
+      function (entries) {
+        entries.forEach(function (entry) {
+          if (!entry.isIntersecting) return;
+          var el = entry.target;
+          var target = parseInt(el.getAttribute("data-count"), 10);
+          var suffix = el.getAttribute("data-suffix") || "";
+          var duration = 1200;
+          var start = Date.now();
+          function tick() {
+            var elapsed = Date.now() - start;
+            var progress = Math.min(elapsed / duration, 1);
+            var eased = 1 - Math.pow(1 - progress, 3);
+            el.textContent = Math.round(target * eased) + suffix;
+            if (progress < 1) window.requestAnimationFrame(tick);
+          }
+          tick();
+          counterObserver.unobserve(el);
+        });
+      },
+      { threshold: 0.5 }
+    );
+    statEls.forEach(function (el) { counterObserver.observe(el); });
+  }
+
   /* ----------------------------------------------------- live GitHub stars */
   var starCount = typeof fetch === "function" ? $("#starCount") : null;
   if (starCount) {
