@@ -3,104 +3,572 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>SENTINEL — supply-chain strike team</title>
-    <link rel="stylesheet" href="/styles.css" />
+    <title>SENTINEL OMNI-LAB — WebMCP Agent-Native Frontier OS</title>
+    <meta
+      name="description"
+      content="SENTINEL Omni-Lab: The World's First 5-in-1 Agent-Native Web Operating System built on the W3C/OpenAI WebMCP Standard. Feat. BreachLab, BioSynth 3D CAD, ChronoForensic OSINT, MetaLoop Flight Simulator, and ZK-Escrow."
+    />
+    <meta name="theme-color" content="#07090e" />
+    <meta name="color-scheme" content="dark" />
+
+    <link rel="stylesheet" href="styles.css" />
     <link
       rel="icon"
       href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛡️</text></svg>"
     />
   </head>
   <body>
-    <div class="app">
-      <header class="topbar">
-        <div class="brand">
-          <span class="mark" aria-hidden="true">◆</span>
+    <!-- Top Global Bar -->
+    <header class="omni-header">
+      <div class="wrap omni-header-inner">
+        <div class="brand-group">
+          <span class="brand-gem" aria-hidden="true">◆</span>
           <div>
-            <h1>SENTINEL</h1>
-            <p>supply-chain strike team · running on TrueForge</p>
+            <div class="brand-title">
+              <strong>SENTINEL</strong> <span class="badge-omni">OMNI-LAB</span>
+            </div>
+            <div class="brand-subtitle">Agent-Native Frontier System · W3C &amp; OpenAI WebMCP Spec</div>
           </div>
         </div>
-        <div class="capabilities" id="capabilities" role="status" aria-live="polite"></div>
-      </header>
 
-      <main class="layout">
-        <section class="stream-pane">
-          <div class="stream" id="stream" role="log" aria-live="polite" aria-label="Agent activity">
-            <div class="empty" id="empty">
-              <h2>Hand the agent a repository.</h2>
-              <p>
-                It will inventory the dependency tree, triage every advisory against the installed
-                versions, assess how risky each upgrade is, and prepare a patch.
-              </p>
-              <p class="gate-note">
-                It stops and asks you before it opens a pull request.
-              </p>
-              <div class="suggestions" id="suggestions"></div>
-            </div>
+        <div class="protocol-status-group">
+          <div class="webmcp-indicator" id="webmcpIndicator">
+            <span class="status-dot online"></span>
+            <span class="indicator-text"><strong>WebMCP:</strong> <span id="toolCountBadge">20 Tools Active</span></span>
           </div>
-
-          <div class="composer">
-            <textarea
-              id="input"
-              rows="2"
-              placeholder="Triage the dependencies in owner/repo and prepare a fix…"
-              aria-label="Task for the agent"
-            ></textarea>
-            <div class="composer-actions">
-              <button id="cancel" class="ghost" type="button" hidden>Stop</button>
-              <button id="send" class="primary" type="button">Run</button>
-            </div>
-          </div>
-        </section>
-
-        <aside class="side-pane">
-          <div class="side-block">
-            <h3>Status</h3>
-            <div id="turn-status" class="status-idle">Idle</div>
-          </div>
-          <div class="side-block">
-            <h3>Tool activity</h3>
-            <ol class="tool-list" id="tool-list">
-              <li class="muted">Nothing yet.</li>
-            </ol>
-          </div>
-          <div class="side-block">
-            <h3>Subagents</h3>
-            <ul class="subagent-list" id="subagent-list">
-              <li class="muted">None spawned.</li>
-            </ul>
-          </div>
-        </aside>
-      </main>
-    </div>
-
-    <!-- The approval gate. Modal and blocking, because the action is irreversible. -->
-    <div class="overlay" id="approval-overlay" hidden>
-      <div
-        class="approval-card"
-        role="alertdialog"
-        aria-modal="true"
-        aria-labelledby="approval-title"
-        aria-describedby="approval-desc"
-      >
-        <div class="approval-head">
-          <span class="pulse" aria-hidden="true"></span>
-          <div>
-            <h2 id="approval-title">Approval required</h2>
-            <p id="approval-desc">
-              The agent has paused. This action cannot be undone, and it will not proceed
-              until you decide.
-            </p>
-          </div>
-        </div>
-        <div class="approval-body" id="approval-body"></div>
-        <div class="approval-actions">
-          <button id="deny" class="danger-ghost" type="button">Deny</button>
-          <button id="approve" class="danger" type="button">Approve and continue</button>
+          <button class="btn-agent-trigger" id="openAgentDrawerBtn">
+            <span class="sparkle">✦</span> WebMCP Agent Cockpit
+          </button>
         </div>
       </div>
-    </div>
+    </header>
 
-    <script type="module" src="/app.js"></script>
+    <!-- Sub-Nav Modules Tab Bar -->
+    <nav class="module-navbar" aria-label="Innovation Modules">
+      <div class="wrap nav-tabs-wrapper">
+        <button class="tab-btn active" data-target="module-breachlab">
+          <span class="tab-icon">🛡️</span>
+          <span class="tab-label">1. Sentinel BreachLab</span>
+          <span class="tab-pill">Zero-Day War Room</span>
+        </button>
+        <button class="tab-btn" data-target="module-biosynth">
+          <span class="tab-icon">🧬</span>
+          <span class="tab-label">2. BioSynth Studio</span>
+          <span class="tab-pill">3D Protein CAD</span>
+        </button>
+        <button class="tab-btn" data-target="module-chrono">
+          <span class="tab-icon">⏱️</span>
+          <span class="tab-label">3. ChronoForensic</span>
+          <span class="tab-pill">OSINT Reconstructor</span>
+        </button>
+        <button class="tab-btn" data-target="module-metaloop">
+          <span class="tab-icon">🛸</span>
+          <span class="tab-label">4. MetaLoop</span>
+          <span class="tab-pill">Swarm Flight Simulator</span>
+        </button>
+        <button class="tab-btn" data-target="module-zkescrow">
+          <span class="tab-icon">🔐</span>
+          <span class="tab-label">5. ZK-Escrow</span>
+          <span class="tab-pill">WebCrypto Arbiter</span>
+        </button>
+      </div>
+    </nav>
+
+    <!-- Main Workspace -->
+    <main class="wrap main-workspace">
+
+      <!-- ========================================================================= -->
+      <!-- MODULE 1: SENTINEL BREACHLAB -->
+      <!-- ========================================================================= -->
+      <section class="module-pane active" id="module-breachlab">
+        <div class="module-banner">
+          <div class="banner-content">
+            <h2>Sentinel BreachLab <span class="tag">Module 1 · Zero-Day Supply-Chain War Room</span></h2>
+            <p>
+              In-browser reverse engineering laboratory powered by WebMCP. Agents and security analysts collaboratively inspect AST patterns, detonate suspicious exploits in isolated sandboxes, visualize attack blast radiuses on live canvas, and synthesize cryptographic hot-patches.
+            </p>
+          </div>
+          <div class="sample-actions">
+            <button class="btn-sample" id="loadSampleRce">Load Zero-Day Exploit</button>
+            <button class="btn-sample" id="loadSampleSupplyChain">Load Poisoned Manifest</button>
+            <button class="btn-primary" id="runBreachLabAnalysis">
+              <span class="icon">⚡</span> Run WebMCP AST Audit
+            </button>
+          </div>
+        </div>
+
+        <div class="grid-2col">
+          <!-- Left: Code & AST Workspace -->
+          <div class="card editor-card">
+            <div class="card-header">
+              <h3>Target Code / Package Manifest</h3>
+              <div class="card-controls">
+                <span class="status-pill" id="breachVerdict">Awaiting Analysis</span>
+              </div>
+            </div>
+            <div class="editor-wrap">
+              <textarea id="breachInput" rows="14" spellcheck="false" placeholder="// Paste JavaScript / TypeScript or package.json here..."></textarea>
+            </div>
+            <div class="editor-actions">
+              <button class="btn-secondary" id="btnDetonateSandbox">
+                <span>🧪</span> Detonate in Micro-Sandbox
+              </button>
+              <button class="btn-secondary" id="btnTraceTaint">
+                <span>🔍</span> Trace Taint Flow
+              </button>
+              <button class="btn-accent" id="btnGenerateHotpatch">
+                <span>🛡️</span> Generate Cryptographic Hotpatch
+              </button>
+            </div>
+          </div>
+
+          <!-- Right: Attack Graph & Metrics -->
+          <div class="card graph-card">
+            <div class="card-header">
+              <h3>Live Attack Graph &amp; CVE Blast Radius</h3>
+              <div class="entropy-badge" id="entropyDisplay">Entropy: 0.00</div>
+            </div>
+            <div class="canvas-container">
+              <canvas id="attackGraphCanvas" width="600" height="280"></canvas>
+            </div>
+            <div class="metrics-row" id="breachMetricsRow">
+              <div class="metric-box">
+                <div class="metric-val" id="threatScoreVal">0/100</div>
+                <div class="metric-lbl">Threat Score</div>
+              </div>
+              <div class="metric-box">
+                <div class="metric-val" id="dangerousCallsVal">0</div>
+                <div class="metric-lbl">Malicious Sinks</div>
+              </div>
+              <div class="metric-box">
+                <div class="metric-val" id="vulnCountVal">0</div>
+                <div class="metric-lbl">Security Findings</div>
+              </div>
+              <div class="metric-box">
+                <div class="metric-val" id="blastRadiusVal">0%</div>
+                <div class="metric-lbl">Max Blast Radius</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Lower Section: Detonation Log & Diff Viewer -->
+        <div class="grid-2col" style="margin-top: 1.5rem;">
+          <div class="card console-card">
+            <div class="card-header">
+              <h3>Isolated Sandbox Detonation Log</h3>
+              <span class="live-tag">Web Worker Guard</span>
+            </div>
+            <pre class="console-output" id="sandboxConsoleOutput">[Detonation micro-sandbox idle. Click 'Detonate in Micro-Sandbox' to execute isolated runtime inspection.]</pre>
+          </div>
+
+          <div class="card patch-card">
+            <div class="card-header">
+              <h3>Automated Hotpatch Diff</h3>
+              <span class="live-tag" id="patchScoreGain">+0 Security Score</span>
+            </div>
+            <pre class="diff-output" id="hotpatchDiffOutput">// Hotpatch diff will appear here upon generation...</pre>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========================================================================= -->
+      <!-- MODULE 2: BIOSYNTH STUDIO -->
+      <!-- ========================================================================= -->
+      <section class="module-pane" id="module-biosynth">
+        <div class="module-banner">
+          <div class="banner-content">
+            <h2>BioSynth Studio <span class="tag">Module 2 · 3D Molecular CAD &amp; Protein Co-Pilot</span></h2>
+            <p>
+              In-browser crystallographic engineering station. Agents and researchers simulate in-silico CRISPR/point mutations, predict thermodynamic stability (ΔΔG), calculate steric clashes in 3D, and highlight active catalytic pockets.
+            </p>
+          </div>
+          <div class="sample-actions">
+            <button class="btn-sample" id="loadDemoProteinBtn">Load Crambin 1CRN</button>
+            <button class="btn-primary" id="scanBindingPocketsBtn">
+              <span>🔍</span> Scan Catalytic Pockets
+            </button>
+          </div>
+        </div>
+
+        <div class="grid-2col">
+          <!-- 3D Molecular View -->
+          <div class="card visualizer-card">
+            <div class="card-header">
+              <h3>3D Atomic Structure &amp; Alpha Carbon Backbone</h3>
+              <span class="status-pill" id="atomCountBadge">25 Atoms Loaded</span>
+            </div>
+            <div class="canvas-container">
+              <canvas id="bioSynthCanvas" width="600" height="340"></canvas>
+            </div>
+            <div class="canvas-hint">Rotate: Left-Click + Drag · Atoms Color: Blue (N), Green (C), Red (O), Yellow (S)</div>
+          </div>
+
+          <!-- Mutation Workbench -->
+          <div class="card cad-workbench">
+            <div class="card-header">
+              <h3>In-Silico Point Mutagenesis Workbench</h3>
+              <span class="status-pill highlight" id="mutationVerdictBadge">Ready</span>
+            </div>
+            
+            <div class="mutation-form">
+              <div class="form-row">
+                <div class="form-field">
+                  <label for="mutChain">Target Chain</label>
+                  <input type="text" id="mutChain" value="A" maxlength="2" />
+                </div>
+                <div class="form-field">
+                  <label for="mutResSeq">Residue Index</label>
+                  <input type="number" id="mutResSeq" value="2" min="1" max="100" />
+                </div>
+                <div class="form-field">
+                  <label for="mutTargetRes">Target Amino Acid</label>
+                  <select id="mutTargetRes">
+                    <option value="TRP">TRP (Tryptophan - Bulky / Hydrophobic)</option>
+                    <option value="ALA">ALA (Alanine - Small / Neutral)</option>
+                    <option value="LYS">LYS (Lysine - Positively Charged)</option>
+                    <option value="ASP">ASP (Aspartate - Negatively Charged)</option>
+                    <option value="CYS">CYS (Cysteine - Disulfide Former)</option>
+                    <option value="PHE">PHE (Phenylalanine - Aromatic)</option>
+                  </select>
+                </div>
+              </div>
+              <button class="btn-accent full-width" id="btnSimulateMutation">
+                <span>⚡</span> Run In-Silico Mutation Simulation
+              </button>
+            </div>
+
+            <div class="mutation-results" id="mutationResultsBlock">
+              <div class="metrics-row">
+                <div class="metric-box">
+                  <div class="metric-val" id="deltaDeltaGVal">0.0 kcal/mol</div>
+                  <div class="metric-lbl">ΔΔG Stability</div>
+                </div>
+                <div class="metric-lbl-desc" id="deltaGDesc">Neutral Folding Free Energy</div>
+              </div>
+              <div class="clash-list-box">
+                <h4>Steric Overlap &amp; Clash Analysis</h4>
+                <ul class="clash-items" id="clashItemsList">
+                  <li class="muted">No severe steric clashes detected.</li>
+                </ul>
+              </div>
+              <div class="recommendation-box" id="bioRecommendationText">
+                Recommendation: Select mutation parameters and simulate.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Binding Pockets Row -->
+        <div class="card" style="margin-top: 1.5rem;">
+          <div class="card-header">
+            <h3>Druggable Catalytic Cavities &amp; Binding Pockets</h3>
+            <span class="live-tag">Cavity Volumetrics</span>
+          </div>
+          <div class="pocket-grid" id="pocketGrid">
+            <div class="pocket-card">
+              <h4>Pocket #1 (Active Site)</h4>
+              <p>Center: (13.8, 11.5, 6.1) · Lining: THR1, THR2, CYS3 · Druggability Score: <strong>0.82</strong></p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========================================================================= -->
+      <!-- MODULE 3: CHRONOFORENSIC OSINT -->
+      <!-- ========================================================================= -->
+      <section class="module-pane" id="module-chrono">
+        <div class="module-banner">
+          <div class="banner-content">
+            <h2>ChronoForensic OSINT <span class="tag">Module 3 · Multi-Angle Acoustic &amp; Spatial Reconstructor</span></h2>
+            <p>
+              In-browser forensic event reconstruction station. AI agents synchronize unaligned CCTV, officer bodycams, and drone feeds using optical flash cross-correlation and 3D acoustic Time-Difference-Of-Arrival (TDOA) multilateration.
+            </p>
+          </div>
+          <div class="sample-actions">
+            <button class="btn-sample" id="loadDroneStreamsBtn">Load Incident Feeds</button>
+            <button class="btn-primary" id="runTriangulationBtn">
+              <span>🎯</span> Triangulate 3D Acoustic Origin
+            </button>
+          </div>
+        </div>
+
+        <div class="grid-2col">
+          <!-- Streams Matrix -->
+          <div class="card streams-card">
+            <div class="card-header">
+              <h3>Multi-Angle Sensor Streams</h3>
+              <span class="status-pill" id="feedCountBadge">3 Streams Synchronized</span>
+            </div>
+            <div class="stream-feed-list" id="streamFeedList">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+
+          <!-- 3D Spatial Map & Audio Waveform -->
+          <div class="card spatial-card">
+            <div class="card-header">
+              <h3>3D Spatial Triangulation &amp; Acoustic Map</h3>
+              <span class="live-tag">Speed of Sound: 343 m/s</span>
+            </div>
+            <div class="canvas-container">
+              <canvas id="chronoMapCanvas" width="600" height="280"></canvas>
+            </div>
+            <div class="metrics-row">
+              <div class="metric-box">
+                <div class="metric-val" id="originCoordsVal">(0.0, 0.0, 0.0)</div>
+                <div class="metric-lbl">Calculated Origin (x, y, z)</div>
+              </div>
+              <div class="metric-box">
+                <div class="metric-val" id="confRadiusVal">±0.4m</div>
+                <div class="metric-lbl">Confidence Margin</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Dossier Table -->
+        <div class="card" style="margin-top: 1.5rem;">
+          <div class="card-header">
+            <h3>Unified Cryptographic Forensic Dossier</h3>
+            <span class="live-tag" id="forensicHashTag">SHA256 Verified</span>
+          </div>
+          <div class="timeline-table-wrap">
+            <table class="timeline-table">
+              <thead>
+                <tr>
+                  <th>Timestamp (Δ ms)</th>
+                  <th>Forensic Event Description</th>
+                  <th>Detected By Feeds</th>
+                  <th>Confidence</th>
+                </tr>
+              </thead>
+              <tbody id="timelineTableBody">
+                <tr>
+                  <td>+0 ms</td>
+                  <td>Optical Flash / High Energy Discharge</td>
+                  <td>CAM-01-CCTV, CAM-02-BODYCAM, CAM-03-DRONE</td>
+                  <td><span class="badge-success">98%</span></td>
+                </tr>
+                <tr>
+                  <td>+142 ms</td>
+                  <td>Primary Supersonic Shockwave Arrival (Near Sensors)</td>
+                  <td>CAM-01-CCTV, CAM-02-BODYCAM</td>
+                  <td><span class="badge-success">94%</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========================================================================= -->
+      <!-- MODULE 4: METALOOP FLIGHT SIMULATOR -->
+      <!-- ========================================================================= -->
+      <section class="module-pane" id="module-metaloop">
+        <div class="module-banner">
+          <div class="banner-content">
+            <h2>MetaLoop Flight Simulator <span class="tag">Module 4 · Autonomous Swarm Debugger</span></h2>
+            <p>
+              Cockpit for debugging multi-agent tool calling loops, cognitive drift, and token budget spikes. WebMCP agents inspect live execution trace trees, detect hallucinations, inject synthetic mock tool outputs, and fork execution paths.
+            </p>
+          </div>
+          <div class="sample-actions">
+            <button class="btn-sample" id="loadTrappedTraceBtn">Simulate Trapped Loop</button>
+            <button class="btn-primary" id="btnMitigateDrift">
+              <span>🛸</span> Auto-Mitigate Swarm Drift
+            </button>
+          </div>
+        </div>
+
+        <div class="grid-2col">
+          <!-- Execution Trace Tree -->
+          <div class="card tree-card">
+            <div class="card-header">
+              <h3>Agent Execution Trace Tree</h3>
+              <span class="status-pill danger" id="swarmHealthBadge">Loop Trapped (Health: 45%)</span>
+            </div>
+            <div class="trace-tree-container" id="traceTreeContainer">
+              <!-- Dynamically populated trace nodes -->
+            </div>
+          </div>
+
+          <!-- Flight Controller & Injection Panel -->
+          <div class="card flight-panel">
+            <div class="card-header">
+              <h3>Cognitive Compensator &amp; Synthetic Injection</h3>
+              <span class="live-tag">Active Branch: branch_main</span>
+            </div>
+            <div class="flight-controls">
+              <div class="anomaly-alert-box" id="anomalyAlertBox">
+                <h4>⚠️ Anomaly Detected: INFINITE_TOOL_LOOP</h4>
+                <p>Agent is calling 'search_nvd_database' repetitively with identical arguments without progress.</p>
+              </div>
+
+              <div class="synthetic-form">
+                <h4>Inject Synthetic Mock Tool Output &amp; Fork Branch</h4>
+                <div class="form-field">
+                  <label>Fork Target Step</label>
+                  <input type="text" id="mockStepId" value="step_2" readonly />
+                </div>
+                <div class="form-field">
+                  <label>Synthetic Tool Result Payload (JSON)</label>
+                  <textarea id="mockPayloadJson" rows="3">{"status":"RESOLVED","cve":"CVE-2026-4109","safeVersion":"4.17.22"}</textarea>
+                </div>
+                <button class="btn-accent full-width" id="btnForkAndInject">
+                  <span>⚡</span> Inject Synthetic Result &amp; Fork Recovery Branch
+                </button>
+              </div>
+
+              <div class="mitigation-box">
+                <h4>Cognitive Guidance Directives</h4>
+                <pre id="driftDirectivesOutput">[Awaiting mitigation run...]</pre>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========================================================================= -->
+      <!-- MODULE 5: ZK PEER-TO-PEER ESCROW -->
+      <!-- ========================================================================= -->
+      <section class="module-pane" id="module-zkescrow">
+        <div class="module-banner">
+          <div class="banner-content">
+            <h2>ZK Peer-to-Peer Escrow <span class="tag">Module 5 · WebCrypto Dispute Arbiter</span></h2>
+            <p>
+              Zero-backend, client-side encrypted dispute and milestone arbitration platform. Uses WebCrypto SHA-256 and ECDSA cryptographic signatures to verify deliverables and authorize escrow vault disbursements with zero server dependency.
+            </p>
+          </div>
+          <div class="sample-actions">
+            <button class="btn-sample" id="initEscrowDemoBtn">Initialize Demo Contract</button>
+            <button class="btn-primary" id="verifyDeliverableBtn">
+              <span>🔍</span> Verify Milestone Deliverable
+            </button>
+          </div>
+        </div>
+
+        <div class="grid-2col">
+          <!-- Contract Overview -->
+          <div class="card contract-card">
+            <div class="card-header">
+              <h3>Cryptographic Escrow Contract</h3>
+              <span class="status-pill success" id="contractStateBadge">FUNDED ($3,500 USD)</span>
+            </div>
+            <div class="contract-details">
+              <div class="crypto-key-row">
+                <span class="crypto-label">Contract ID:</span>
+                <span class="crypto-key" id="escrowContractId">CTR-98AF-2026</span>
+              </div>
+              <div class="crypto-key-row">
+                <span class="crypto-label">Client Key:</span>
+                <span class="crypto-key" id="escrowClientKey">PUB_CLI_7a4f91d0e</span>
+              </div>
+              <div class="crypto-key-row">
+                <span class="crypto-label">Contractor:</span>
+                <span class="crypto-key" id="escrowCtrKey">PUB_CTR_38bc991a0</span>
+              </div>
+            </div>
+
+            <div class="milestones-list" id="escrowMilestonesList">
+              <!-- Milestones rendered here -->
+            </div>
+          </div>
+
+          <!-- Deliverable Verification Workbench -->
+          <div class="card arbiter-card">
+            <div class="card-header">
+              <h3>Deliverable Verification &amp; Arbiter Proof</h3>
+              <span class="live-tag">WebCrypto SHA-256</span>
+            </div>
+            <div class="arbiter-workbench">
+              <div class="form-field">
+                <label>Deliverable Source / Document Content</label>
+                <textarea id="deliverableContent" rows="4">function patchVulnerability(ast) { return sanitize(ast); }</textarea>
+              </div>
+              <div class="hash-preview-row">
+                <span>Calculated SHA-256:</span>
+                <strong id="computedSha256">4a17...c890</strong>
+              </div>
+              <div class="arbiter-actions">
+                <button class="btn-secondary" id="btnRunAcceptanceTests">
+                  <span>🧪</span> Run In-Browser Test Assertions
+                </button>
+                <button class="btn-accent" id="btnSignEscrowRelease">
+                  <span>✍️</span> Sign Zero-Knowledge Release Proof
+                </button>
+              </div>
+
+              <div class="proof-card" id="proofCard">
+                <h4>Cryptographic Release Proof</h4>
+                <pre id="proofJsonOutput">// Release proof signature will appear here...</pre>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- ========================================================================= -->
+    <!-- SLIDE-OUT / DOCKED WEBMCP AGENT COCKPIT -->
+    <!-- ========================================================================= -->
+    <div class="agent-drawer-backdrop" id="agentDrawerBackdrop"></div>
+    <aside class="agent-drawer" id="agentDrawer" aria-label="WebMCP Autonomous Agent Cockpit">
+      <div class="drawer-header">
+        <div class="drawer-title-group">
+          <span class="sparkle">✦</span>
+          <div>
+            <h3>WebMCP Autonomous Co-Pilot</h3>
+            <p>Direct Browser Tool Invocation Engine</p>
+          </div>
+        </div>
+        <button class="drawer-close-btn" id="closeAgentDrawerBtn">&times;</button>
+      </div>
+
+      <!-- Preset Autonomous Workflows -->
+      <div class="preset-missions">
+        <div class="preset-label">One-Click Agent Missions:</div>
+        <div class="mission-chips">
+          <button class="mission-chip" data-mission="breach">🛡️ Triage Zero-Day &amp; Patch</button>
+          <button class="mission-chip" data-mission="bio">🧬 Simulate CRISPR Mutation</button>
+          <button class="mission-chip" data-mission="chrono">⏱️ Triangulate Incident Audio</button>
+          <button class="mission-chip" data-mission="meta">🛸 Fork Trapped Agent Loop</button>
+          <button class="mission-chip" data-mission="escrow">🔐 Verify Deliverable &amp; Release</button>
+        </div>
+      </div>
+
+      <!-- Agent Thought & Tool Execution Stream -->
+      <div class="drawer-stream" id="agentExecutionStream">
+        <div class="agent-msg system">
+          <div class="msg-meta">SENTINEL HARNESS · WebMCP Ready</div>
+          <div class="msg-body">
+            All 20 WebMCP tools are registered via <code>document.modelContext</code>. Type a command or click any mission chip above to invoke tools in real time.
+          </div>
+        </div>
+      </div>
+
+      <!-- Agent Composer -->
+      <div class="drawer-composer">
+        <textarea id="agentComposerInput" rows="2" placeholder="Ask the WebMCP agent to audit code, mutate proteins, triangulate audio..."></textarea>
+        <div class="drawer-composer-actions">
+          <button class="btn-primary" id="btnSendAgentPrompt">
+            <span>🚀</span> Execute Mission
+          </button>
+        </div>
+      </div>
+
+      <!-- Registered Tools Collapsible Drawer -->
+      <div class="registered-tools-collapsible">
+        <details>
+          <summary>View All 20 Registered WebMCP Tools</summary>
+          <div class="tool-tags-list" id="registeredToolsList">
+            <!-- Populated via script -->
+          </div>
+        </details>
+      </div>
+    </aside>
+
+    <script type="module" src="app.js"></script>
   </body>
 </html>
