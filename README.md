@@ -226,14 +226,14 @@ now guards it):
 
 | Finding | Severity | Resolution |
 | --- | --- | --- |
-| `open_pull_request` contacted GitHub *before* checking the read-only kill switch, so a read-only deployment still made outbound calls. | High | Kill switch moved ahead of all I/O in the destruc[...] |
-| Approval dialog rendered `unknown_tool` with no arguments during a live turn — a human authorising an irreversible action with nothing to judge. | High | Root cause was streamed tool calls ar[...] |
+| `open_pull_request` contacted GitHub *before* checking the read-only kill switch, so a read-only deployment still made outbound calls. | High | Kill switch moved ahead of all I/O in the destructed] |
+| Approval dialog rendered `unknown_tool` with no arguments during a live turn — a human authorising an irreversible action with nothing to judge. | High | Root cause was streamed tool calls argument|
 | Google API key pattern used a fixed `{35}` length, so a longer key passed through unredacted. | Medium | Widened to `{35,}`; the redaction suite now asserts each of ten credential shapes. |
 | `vitest` pulled in a transitive `esbuild` advisory (1 critical, 1 high). | Medium | Upgraded to `vitest@3`; `npm audit` is clean and runs in CI. |
 
 **What Qodo surfaced:**
 
-- _Awaiting the first review round on [#1](https://github.com/geohot0199/TrueForge-GitHub-repository-is-here-/pull/1). Findings and decisions will be recorded here, with a follow-up review run ag[...]
+- _Awaiting the first review round on [#1](https://github.com/geohot0199/TrueForge-GitHub-repository-is-here-/pull/1). Findings and decisions will be recorded here, with a follow-up review run agent.
 
 **How findings are handled:** every valid High-severity finding is fixed before
 merge. Where a High finding is wrong, deferred, or intentional, it is dismissed
@@ -249,3 +249,4 @@ against the final code so the PR history shows the resolution.
 
 MIT — see [LICENSE](LICENSE).
 
+<!-- qodo wiring check -->
