@@ -1,424 +1,700 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>SENTINEL — Autonomous Supply-Chain CVE Strike Team</title>
-  <meta name="description" content="SENTINEL reads your dependency tree, triages every advisory, prepares the patch, and stops for a human before opening the pull request." />
-  <meta name="theme-color" content="#000000" />
-  <meta name="color-scheme" content="dark" />
-  <meta property="og:title" content="SENTINEL — Autonomous Supply-Chain CVE Strike Team" />
-  <meta property="og:description" content="Triage every advisory. Prepare the patch. Stop for a human." />
-  <meta property="og:url" content="https://geohot0199.github.io/sentinental/" />
-  <meta property="og:type" content="website" />
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⬛</text></svg>" />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css" />
-  <script>document.documentElement.className += ' js';</script>
-</head>
-<body>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SENTINEL — autonomous supply-chain CVE strike team</title>
+    <meta
+      name="description"
+      content="SENTINEL reads your dependency tree, triages every advisory against the versions you actually ship, prepares the patch, and stops to ask a human before it opens the pull request. Built on the TrueForge agent harness."
+    />
+    <meta name="theme-color" content="#000000" />
+    <meta name="color-scheme" content="dark" />
 
-<!-- NAV -->
-<nav class="nav" id="nav">
-  <div class="container nav-inner">
-    <a href="#top" class="logo">
-      <span class="logo-block">■</span>
-      SENTINEL
-    </a>
-    <button class="nav-toggle" id="navToggle" aria-label="Menu" aria-expanded="false">
-      <span></span><span></span><span></span>
-    </button>
-    <div class="nav-links" id="navLinks">
-      <a href="#what">What</a>
-      <a href="#pipeline">Pipeline</a>
-      <a href="#install">Install</a>
-      <a href="#safety">Safety</a>
-      <a href="#verified">Verified</a>
-      <a href="https://github.com/geohot0199/sentinental" class="nav-gh" target="_blank" rel="noopener">GitHub ↗</a>
-    </div>
-  </div>
-</nav>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="SENTINEL — autonomous supply-chain CVE strike team" />
+    <meta
+      property="og:description"
+      content="Triage every advisory against the versions you actually ship, prepare the patch — and stop for a human before the pull request."
+    />
+    <meta property="og:url" content="https://geohot0199.github.io/sentinental/" />
+    <meta name="twitter:card" content="summary_large_image" />
 
-<!-- HERO -->
-<section class="hero" id="top">
-  <pre class="ascii-bg" aria-hidden="true">
-                                                  ___
-                                              ,-""   `.
-                                            ,'  _   _ )`-.__
-                                           (  ,'_`-'_,'.    `--.
-                                            `-'   `-'         `.`.
-                                               `.               `.`.
-                                                 `.                `.`.
-                                                   `.                `.`.
-                                         .--.        `.                `.`.
-                                        |    |         `.                `.`.
-                                        |    |           `.                `.`.
-                                        |    |             `.                `.`.
-                                        |    |               `.                `.`.
-                                        |    |                 `.                `.`.
-                                        |    |                   `.                `.`.
-                                        |    |                     `.                `.`.
-                                        |    |                       `.                `.`.
-                                        |    |                         `.                `.`.
-                                        |    |                           `.                `.`.
-                                        |    |                             `.                `.`.
-                                        |    |                               `.                `.`.
-                                        |    |                                 `.                `.`.
-                                        |    |                                   `.                `.`.
-                                        |    |                                     `.                `.`.
-                                        |    |                                       `.                `.`.
-                                        |    |                                         `.                `.`.
-                                        |    |                                           `.                `.`.
-                                        |    |                                             `.                `.
-                                        |    |                                               `.               |
-                                        |    |                                                 |              |
-                                        |    |                                                 |              |
-                                        |    |                                                 |              |
-                                        |    |                                                 |              |
-                                        |    |                                                 |              |
-                                        |    |                                                 |              |
-                                        |    |                                                 |              |
-                                        |    |                                                 |              |
-                                        |    |                                                 |              |
-                                        |    |                                                 |              |
-                                        |    |                                                 |              |
-                                        |    |                                                 |              |
-                                        |    |                                                 |              |
-                                        |    |                                                 |              |
-                                        |    |                                                 |              |
-                                        |    |                                                 |              |
-                                        |    |                                                 |              |
-                                        |    |                                                 |              |
-                                        |    |                                                 |              |
-                                        |    |                                                 |              |
-                                        |    |                                                 |              |
-                                        |    |                                                 |              |
-                                        |    |                                                 |              |
-                                        |    |                                                 |              |
-                                        |    |                                                 |              |
-                                        |    |                                                 |              |
-                                        |    |                                                 |              |
-                                        |    |                                                 |              |
-                                        |    |                                                 |              |
-                                        |    |                                                 |              |
-                                        |    |                                                 |              |
-                                        |    |                                                 |              |
-                                        |    |                                                 |              |
-                                        |    |                                                 |              |
-                                        |    |                                                 |              |
-                                        |    |                                                 |              |
-                                        |    |                                                 |              |
-                                        |    |                                                 |              |
-                                        |    |                                                 |              |
-                                        |    |                                                 |              |
-                                        |    |                                                 |              |
-                                        |    |                                                 |              |
-                                        |    |                                                 |              |
-                                        |    |                                                 |              |
-                                        |    |                                                 |              |
-                                        |    |                                                 |              |
-                                        |    |                                                 |              |
-                                        |    |                                                 |              |
-                                        |    |                                                 |              |
-                                        |    |                                                 |              |
-                                        |    |                                                 |              |
-                                        |    |                                                 |              |
-                                        |    |                                                 |              |
-                                        |    |                                                 |              |
-                                        |    |                                                 |              |
-                                        |    |                                                 |              |
-                                        ||..............................................................|.......
-                                        `-----'`--------------------------------------------------------------'`------'
-  </pre>
-  <div class="container">
-    <div class="hero-grid">
-      <div class="hero-text">
-        <div class="tag">v0.2.0 · MIT · TRUEFORGE HARNESS</div>
-        <h1 class="hero-h1">SENTINEL</h1>
-        <p class="hero-sub">Autonomous supply-chain CVE strike team.</p>
-        <p class="hero-desc">
-          Reads your dependency tree. Triages every advisory against the versions you actually ship.
-          Prepares the patch. <strong>Then stops and asks you</strong> before it opens the pull request.
-        </p>
-        <div class="hero-actions">
-          <a href="https://github.com/geohot0199/sentinental/releases/latest" class="btn btn-w" target="_blank" rel="noopener">Download v0.2.0</a>
-          <a href="#install" class="btn btn-o">Install guide</a>
-        </div>
-        <div class="install-box">
-          <code id="installCmd">npm i -g https://github.com/geohot0199/sentinental/raw/refs/tags/v0.2.0/releases/sentinel-strike-team-0.2.0.tgz</code>
-          <button class="copy-btn" data-copy="installCmd" aria-label="Copy">COPY</button>
-        </div>
+    <link rel="stylesheet" href="styles.css" />
+    <script>
+      // Progressive enhancement flag: scroll-reveal only hides content when
+      // scripting is available, so the page never renders blank without it.
+      document.documentElement.className += " js";
+    </script>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%F0%9F%9B%A1%EF%B8%8F</text></svg>"
+    />
+  </head>
+  <body>
+    <a class="skip-link" href="#install">Skip to installation</a>
+
+    <!-- ======================================================= header -->
+    <header class="site-header" id="siteHeader">
+      <div class="wrap header-inner">
+        <a class="brand" href="#top">
+          <span class="brand-mark" aria-hidden="true">◆</span>
+          <span class="brand-text">
+            <strong>SENTINEL</strong>
+            <span>supply-chain strike team</span>
+          </span>
+        </a>
+
+        <button
+          class="nav-toggle"
+          id="navToggle"
+          type="button"
+          aria-expanded="false"
+          aria-controls="primaryNav"
+          aria-label="Toggle navigation"
+        >
+          <span></span><span></span><span></span>
+        </button>
+
+        <nav class="primary-nav" id="primaryNav" aria-label="Primary">
+          <a href="#overview">Overview</a>
+          <a href="#pipeline">Pipeline</a>
+          <a href="#install">Install</a>
+          <a href="#configuration">Config</a>
+          <a href="#safety">Safety</a>
+          <a href="#verified">Verified</a>
+          <a class="nav-cta" href="https://github.com/geohot0199/sentinental/releases/latest" target="_blank" rel="noopener">
+            <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true" fill="currentColor">
+              <path d="M7.47 10.78a.75.75 0 0 0 1.06 0l3.75-3.75a.75.75 0 0 0-1.06-1.06L8.75 8.44V1.75a.75.75 0 0 0-1.5 0v6.69L4.78 5.97a.75.75 0 0 0-1.06 1.06zM3.75 13a.75.75 0 0 0 0 1.5h8.5a.75.75 0 0 0 0-1.5z" />
+            </svg>
+            Download
+          </a>
+        </nav>
       </div>
-      <div class="hero-vis">
-        <div class="term">
-          <div class="term-bar">
-            <span class="term-dot"></span>
-            <span class="term-dot"></span>
-            <span class="term-dot"></span>
-            <span class="term-title">sentinel — triage owner/repo</span>
-          </div>
-          <div class="term-body">
-            <div class="pipe" id="heroPipe">
-              <div class="pipe-row"><span class="pipe-n">01</span><span class="pipe-label">Inventory</span><span class="pipe-info">lockfile resolved</span><span class="pipe-dot"></span></div>
-              <div class="pipe-row"><span class="pipe-n">02</span><span class="pipe-label">Triage</span><span class="pipe-info">14 advisories → 3 match</span><span class="pipe-dot"></span></div>
-              <div class="pipe-row"><span class="pipe-n">03</span><span class="pipe-label">Delegate</span><span class="pipe-info">3 subagents spawned</span><span class="pipe-dot"></span></div>
-              <div class="pipe-row"><span class="pipe-n">04</span><span class="pipe-label">Assess</span><span class="pipe-info">1 major · 2 patch</span><span class="pipe-dot"></span></div>
-              <div class="pipe-row"><span class="pipe-n">05</span><span class="pipe-label">Plan</span><span class="pipe-info">highest fix version</span><span class="pipe-dot"></span></div>
-              <div class="pipe-row"><span class="pipe-n">06</span><span class="pipe-label">Patch</span><span class="pipe-info">ranges preserved</span><span class="pipe-dot"></span></div>
-              <div class="pipe-row"><span class="pipe-n">07</span><span class="pipe-label">Verify</span><span class="pipe-info">93/93 in sandbox</span><span class="pipe-dot"></span></div>
-              <div class="pipe-row pipe-gate"><span class="pipe-n">08</span><span class="pipe-label">Propose</span><span class="pipe-info">waiting for human</span><span class="pipe-dot"></span></div>
+    </header>
+
+    <main id="top">
+      <!-- ===================================================== hero -->
+      <section class="hero">
+        <div class="hero-bg" aria-hidden="true"></div>
+        <canvas class="particles-canvas" id="particlesCanvas" aria-hidden="true"></canvas>
+        <div class="wrap hero-inner">
+          <div class="hero-copy">
+            <p class="eyebrow">
+              <span class="pulse-dot" aria-hidden="true"></span>
+              v0.2.0 · MIT licensed · built on the TrueForge agent harness
+            </p>
+
+            <h1 class="hero-title">
+              <span class="hero-title-word">SENTINEL</span>
+            </h1>
+
+            <p class="hero-tagline">An autonomous supply-chain CVE strike team.</p>
+
+            <p class="hero-lede">
+              It reads your dependency tree, triages every advisory against the versions you
+              <em>actually ship</em>, works out how risky each fix is, prepares the patch — and then
+              stops and asks a human before it opens the pull request.
+            </p>
+
+            <div class="feature-badges">
+              <span class="feature-badge"><span class="dot-sm dot-cyan" aria-hidden="true"></span> Autonomous triage</span>
+              <span class="feature-badge"><span class="dot-sm dot-green" aria-hidden="true"></span> Human-in-the-loop PRs</span>
+              <span class="feature-badge"><span class="dot-sm dot-purple" aria-hidden="true"></span> Multi-agent pipeline</span>
             </div>
-            <div class="term-foot">
-              <span class="term-badge">⚠ APPROVAL REQUIRED</span>
-              <span class="term-hint">open_pull_request · destructive</span>
+
+            <div class="cta-row">
+              <a
+                class="btn btn-primary"
+                href="https://github.com/geohot0199/sentinental/releases/latest"
+                target="_blank"
+                rel="noopener"
+              >
+                <svg viewBox="0 0 16 16" width="17" height="17" aria-hidden="true" fill="currentColor">
+                  <path d="M7.47 10.78a.75.75 0 0 0 1.06 0l3.75-3.75a.75.75 0 0 0-1.06-1.06L8.75 8.44V1.75a.75.75 0 0 0-1.5 0v6.69L4.78 5.97a.75.75 0 0 0-1.06 1.06zM3.75 13a.75.75 0 0 0 0 1.5h8.5a.75.75 0 0 0 0-1.5z" />
+                </svg>
+                Download v0.2.0
+              </a>
+              <a class="btn btn-ghost" href="https://github.com/geohot0199/sentinental" target="_blank" rel="noopener">
+                <svg viewBox="0 0 16 16" width="17" height="17" aria-hidden="true" fill="currentColor">
+                  <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.07-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.4 7.4 0 0 1 2-.27c.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.15 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A7.99 7.99 0 0 0 16 8c0-4.42-3.58-8-8-8Z" />
+                </svg>
+                View on GitHub
+              </a>
+            </div>
+
+            <div class="install-line">
+              <code id="quickInstall">npm install --global https://github.com/geohot0199/sentinental/raw/refs/tags/v0.2.0/releases/sentinel-strike-team-v0.2.0.tgz</code>
+              <button class="copy-btn" type="button" data-copy-target="quickInstall" aria-label="Copy install command">
+                <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true" fill="currentColor">
+                  <path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z" />
+                  <path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z" />
+                </svg>
+                <span class="copy-label">Copy</span>
+              </button>
+            </div>
+
+            <ul class="hero-meta">
+              <li><span class="k">Package</span> sentinel-strike-team · 96 KB tarball</li>
+              <li><span class="k">Requires</span> Node.js ≥ 22.14</li>
+              <li>
+                <span class="k">SHA256</span>
+                <code class="hash" id="checksum">b14628e81bbcd73dc46429bb238b04a71c5524420a618a6757d4c89d9f5cef5c</code>
+                <button class="copy-btn tiny" type="button" data-copy-target="checksum" aria-label="Copy checksum">copy</button>
+              </li>
+            </ul>
+          </div>
+
+          <!-- ------------------------------------------- hero visual -->
+          <div class="hero-visual" aria-hidden="true">
+            <div class="console">
+              <div class="console-bar">
+                <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+                <span class="console-title">sentinel — triage owner/repo</span>
+              </div>
+              <div class="console-body">
+                <div class="pipeline" id="heroPipeline">
+                  <div class="stage" data-stage="1">
+                    <span class="stage-num">01</span>
+                    <span class="stage-name">Inventory</span>
+                    <span class="stage-note">lockfile resolved</span>
+                    <span class="stage-state"></span>
+                  </div>
+                  <div class="stage" data-stage="2">
+                    <span class="stage-num">02</span>
+                    <span class="stage-name">Triage</span>
+                    <span class="stage-note">14 advisories → 3 match</span>
+                    <span class="stage-state"></span>
+                  </div>
+                  <div class="stage" data-stage="3">
+                    <span class="stage-num">03</span>
+                    <span class="stage-name">Delegate</span>
+                    <span class="stage-note">3 subagents spawned</span>
+                    <span class="stage-state"></span>
+                  </div>
+                  <div class="stage" data-stage="4">
+                    <span class="stage-num">04</span>
+                    <span class="stage-name">Assess</span>
+                    <span class="stage-note">1 major · 2 patch</span>
+                    <span class="stage-state"></span>
+                  </div>
+                  <div class="stage" data-stage="5">
+                    <span class="stage-num">05</span>
+                    <span class="stage-name">Plan</span>
+                    <span class="stage-note">highest fix version</span>
+                    <span class="stage-state"></span>
+                  </div>
+                  <div class="stage" data-stage="6">
+                    <span class="stage-num">06</span>
+                    <span class="stage-name">Patch</span>
+                    <span class="stage-note">ranges preserved</span>
+                    <span class="stage-state"></span>
+                  </div>
+                  <div class="stage" data-stage="7">
+                    <span class="stage-num">07</span>
+                    <span class="stage-name">Verify</span>
+                    <span class="stage-note">93/93 in sandbox</span>
+                    <span class="stage-state"></span>
+                  </div>
+                  <div class="stage stage-gate" data-stage="8">
+                    <span class="stage-num">08</span>
+                    <span class="stage-name">Propose</span>
+                    <span class="stage-note">waiting for a human</span>
+                    <span class="stage-state"></span>
+                  </div>
+                </div>
+                <div class="console-foot">
+                  <span class="badge badge-warn">approval required</span>
+                  <span class="console-hint">open_pull_request · destructive</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
-      </div>
-    </div>
-    <div class="stats">
-      <div class="stat"><span class="stat-num" data-count="7">0</span><span class="stat-label">MCP Tools</span></div>
-      <div class="stat"><span class="stat-num" data-count="8">0</span><span class="stat-label">Stages</span></div>
-      <div class="stat"><span class="stat-num" data-count="93">0</span><span class="stat-label">Tests Pass</span></div>
-      <div class="stat"><span class="stat-num" data-count="0">0</span><span class="stat-label">Secrets</span></div>
-      <div class="stat"><span class="stat-num">MIT</span><span class="stat-label">License</span></div>
-    </div>
-  </div>
-</section>
 
-<!-- PROBLEM -->
-<section class="sect" id="what">
-  <div class="container">
-    <div class="sect-tag">THE PROBLEM</div>
-    <div class="split">
-      <div>
-        <h2 class="sect-h2">Nobody has an afternoon.</h2>
-        <p class="sect-p">A dependency advisory lands. Someone has to figure out if <em>this</em> repo is actually affected, if the fix is a one-liner or a breaking change, if tests survive it, and then write the PR.</p>
-        <p class="sect-p dim">That's an afternoon per advisory. Most teams do it late or not at all. Every software team on earth has this backlog.</p>
-      </div>
-      <div class="quote-block">
-        <p class="quote-text">"The bottleneck is not knowledge. It is that nobody has an afternoon."</p>
-        <p class="quote-foot">So SENTINEL does the afternoon. It stops at the one step that is irreversible.</p>
-      </div>
-    </div>
-  </div>
-</section>
+        <!-- ---------------------------------------------- stat strip -->
+        <div class="wrap">
+          <dl class="stat-strip">
+            <div class="stat"><dt data-count="7">7</dt><dd>MCP tools</dd></div>
+            <div class="stat"><dt data-count="8">8</dt><dd>Pipeline stages</dd></div>
+            <div class="stat"><dt data-count="93">93</dt><dd>Tests passing</dd></div>
+            <div class="stat"><dt data-count="0">0</dt><dd>Secrets in logs</dd></div>
+            <div class="stat"><dt>MIT</dt><dd>Licence</dd></div>
+          </dl>
+        </div>
+      </section>
 
-<!-- PIPELINE -->
-<section class="sect sect-alt" id="pipeline">
-  <div class="container">
-    <div class="sect-tag">WHAT IT DOES</div>
-    <h2 class="sect-h2 reveal">Eight stages. The last one is yours.</h2>
-    <p class="sect-lede reveal">Everything up to the pull request is autonomous. The PR itself is not — that's the irreversible step.</p>
-    <div class="cards">
-      <div class="card reveal">
-        <div class="card-head"><span class="card-n">01</span><h3>Inventory</h3></div>
-        <p>Reads <code>package.json</code> and the lockfile from GitHub. Resolves real installed versions, not declared ranges.</p>
-        <div class="card-tag">AGENT</div>
-      </div>
-      <div class="card reveal">
-        <div class="card-head"><span class="card-n">02</span><h3>Triage</h3></div>
-        <p>Queries GitHub Advisory Database (OSV fallback). Keeps only advisories whose version range actually matches.</p>
-        <div class="card-tag">AGENT</div>
-      </div>
-      <div class="card reveal">
-        <div class="card-head"><span class="card-n">03</span><h3>Delegate</h3></div>
-        <p>One subagent per affected package. Clean context window each. Ten CVEs don't share one context.</p>
-        <div class="card-tag">AGENT</div>
-      </div>
-      <div class="card reveal">
-        <div class="card-head"><span class="card-n">04</span><h3>Assess</h3></div>
-        <p>Works out if each upgrade is patch, minor, or major. Checks how widely the package is imported.</p>
-        <div class="card-tag">AGENT</div>
-      </div>
-      <div class="card reveal">
-        <div class="card-head"><span class="card-n">05</span><h3>Plan</h3></div>
-        <p>One safe target version per package — the <em>highest</em> fix version. No advisory left open.</p>
-        <div class="card-tag">AGENT</div>
-      </div>
-      <div class="card reveal">
-        <div class="card-head"><span class="card-n">06</span><h3>Patch</h3></div>
-        <p>Generates updated <code>package.json</code>. Preserves the project's existing range operators.</p>
-        <div class="card-tag">AGENT</div>
-      </div>
-      <div class="card reveal">
-        <div class="card-head"><span class="card-n">07</span><h3>Verify</h3></div>
-        <p>Installs and runs the test suite in an isolated sandbox.</p>
-        <div class="card-tag">AGENT</div>
-      </div>
-      <div class="card card-gate reveal">
-        <div class="card-head"><span class="card-n">08</span><h3>Propose</h3></div>
-        <p>Opens the pull request. <strong>Pauses. Waits for a human.</strong></p>
-        <div class="card-tag card-tag-you">YOU</div>
-      </div>
-    </div>
-    <div class="note reveal"><strong>The last row is the point.</strong> The pause is real: the turn ends, the console shows the full tool call, and nothing happens until you click.</div>
-  </div>
-</section>
-
-<!-- INSTALL -->
-<section class="sect" id="install">
-  <div class="container">
-    <div class="sect-tag">INSTALLATION</div>
-    <h2 class="sect-h2 reveal">Three commands. That's it.</h2>
-    <p class="sect-lede reveal">Pick a path. All downloads from GitHub — no registry, no mirror, no signup.</p>
-    <div class="tabs reveal" id="installTabs">
-      <div class="tab-bar">
-        <button class="tab active" data-panel="p-cli">CLI Install</button>
-        <button class="tab" data-panel="p-src">From Source</button>
-        <button class="tab" data-panel="p-demo">No-Key Demo</button>
-      </div>
-      <div class="tab-panel active" id="p-cli">
-        <p class="tab-desc">Packaged CLI from <strong>v0.2.0</strong>. Requires <strong>Node.js ≥ 22.14</strong>.</p>
-        <div class="steps">
-          <div class="step">
-            <div class="step-head"><span class="step-n">1</span> Download</div>
-            <div class="code-block" data-code="curl -L -O https://github.com/geohot0199/sentinental/raw/refs/tags/v0.2.0/releases/sentinel-strike-team-0.2.0.tgz"><pre>curl -L -O https://github.com/geohot0199/sentinental/raw/refs/tags/v0.2.0/releases/sentinel-strike-team-0.2.0.tgz</pre></div>
-          </div>
-          <div class="step">
-            <div class="step-head"><span class="step-n">2</span> Install globally</div>
-            <div class="code-block" data-code="npm install --global sentinel-strike-team-0.2.0.tgz"><pre>npm install --global sentinel-strike-team-0.2.0.tgz</pre></div>
-          </div>
-          <div class="step">
-            <div class="step-head"><span class="step-n">3</span> Configure &amp; run</div>
-            <div class="code-block" data-code="cp .env.example .env&#10;sentinel"><pre>cp .env.example .env   # add your keys
-sentinel</pre></div>
+      <!-- ================================================== overview -->
+      <section class="section" id="overview">
+        <div class="wrap">
+          <p class="section-kicker">The problem</p>
+          <div class="split">
+            <div class="split-main reveal">
+              <h2>Nobody has an afternoon.</h2>
+              <p>
+                A dependency advisory lands. Someone has to work out whether <em>this</em> repo is
+                genuinely affected, whether the fix is a one-line bump or a breaking change, whether
+                the test suite survives it, and then write the pull request. That is an afternoon per
+                advisory, and most teams do it late or not at all.
+              </p>
+              <p class="muted">
+                Every software team on earth has this backlog. So the work is not knowledge work any
+                more — it is repetition at scale, and repetition is exactly what an agent should be
+                doing.
+              </p>
+            </div>
+            <aside class="callout reveal">
+              <p class="callout-quote">
+                “The bottleneck is not knowledge. It is that nobody has an afternoon.”
+              </p>
+              <p class="callout-foot">
+                So SENTINEL does the afternoon. It stops at the one step that is irreversible.
+              </p>
+            </aside>
           </div>
         </div>
-      </div>
-      <div class="tab-panel" id="p-src" hidden>
-        <p class="tab-desc">Full source with web console and MCP server. Needs the TrueForge harness running.</p>
-        <div class="steps">
-          <div class="step">
-            <div class="step-head"><span class="step-n">1</span> Start TrueForge</div>
-            <div class="code-block" data-code="npx @truefoundry/trueforge@latest"><pre>npx @truefoundry/trueforge@latest</pre></div>
+      </section>
+
+      <!-- ================================================== pipeline -->
+      <section class="section section-alt" id="pipeline">
+        <div class="wrap">
+          <p class="section-kicker">What it does</p>
+          <h2 class="reveal">Eight stages. The last one is yours.</h2>
+          <p class="section-lede reveal">
+            Everything up to the pull request is autonomous. The pull request itself is not — that is
+            the irreversible step, and the agent stops there and asks.
+          </p>
+
+          <ol class="stage-grid">
+            <li class="stage-card reveal">
+              <header><span class="num">01</span><h3>Inventory</h3></header>
+              <p>
+                Reads <code>package.json</code> and the lockfile from GitHub, resolving real
+                installed versions rather than declared ranges.
+              </p>
+              <footer><span class="tag">Agent</span></footer>
+            </li>
+            <li class="stage-card reveal">
+              <header><span class="num">02</span><h3>Triage</h3></header>
+              <p>
+                Queries the GitHub Advisory Database (OSV fallback) and keeps only advisories whose
+                version range actually matches.
+              </p>
+              <footer><span class="tag">Agent</span></footer>
+            </li>
+            <li class="stage-card reveal">
+              <header><span class="num">03</span><h3>Delegate</h3></header>
+              <p>
+                Spawns one subagent per affected package, each with a clean context window — ten CVEs
+                do not share (and exhaust) one context.
+              </p>
+              <footer><span class="tag">Agent</span></footer>
+            </li>
+            <li class="stage-card reveal">
+              <header><span class="num">04</span><h3>Assess</h3></header>
+              <p>
+                Works out whether each upgrade is a patch, minor or major bump, and how widely the
+                package is imported.
+              </p>
+              <footer><span class="tag">Agent</span></footer>
+            </li>
+            <li class="stage-card reveal">
+              <header><span class="num">05</span><h3>Plan</h3></header>
+              <p>
+                Collapses findings into one safe target version per package — the
+                <em>highest</em> fix version, so no advisory is left open.
+              </p>
+              <footer><span class="tag">Agent</span></footer>
+            </li>
+            <li class="stage-card reveal">
+              <header><span class="num">06</span><h3>Patch</h3></header>
+              <p>
+                Generates the updated <code>package.json</code>, preserving the project's existing
+                range operators.
+              </p>
+              <footer><span class="tag">Agent</span></footer>
+            </li>
+            <li class="stage-card reveal">
+              <header><span class="num">07</span><h3>Verify</h3></header>
+              <p>Installs and runs the test suite in an isolated sandbox.</p>
+              <footer><span class="tag">Agent</span></footer>
+            </li>
+            <li class="stage-card stage-card-gate reveal">
+              <header><span class="num">08</span><h3>Propose</h3></header>
+              <p>Opens the pull request. <strong>Pauses. Waits for a human.</strong></p>
+              <footer><span class="tag tag-you">You</span></footer>
+            </li>
+          </ol>
+
+          <div class="note reveal">
+            <strong>The last row is the point of the project.</strong> The pause is real: the turn
+            ends, the console shows the full tool call and its arguments, and nothing happens until a
+            person clicks.
           </div>
-          <div class="step">
-            <div class="step-head"><span class="step-n">2</span> Clone &amp; install</div>
-            <div class="code-block" data-code="git clone https://github.com/geohot0199/sentinental.git&#10;cd sentinental&#10;npm install"><pre>git clone https://github.com/geohot0199/sentinental.git
+        </div>
+      </section>
+
+      <!-- =================================================== install -->
+      <section class="section" id="install">
+        <div class="wrap">
+          <p class="section-kicker">Installation</p>
+          <h2 class="reveal">Everything you need, in three commands.</h2>
+          <p class="section-lede reveal">
+            Pick the path that fits. All downloads come straight from GitHub — there is no registry,
+            no mirror, and nothing to sign up for.
+          </p>
+
+          <div class="tabs reveal" id="installTabs">
+            <div class="tablist" role="tablist" aria-label="Installation method">
+              <button type="button" role="tab" id="tab-cli" aria-controls="panel-cli" aria-selected="true" class="tab is-active">
+                Install the CLI
+              </button>
+              <button type="button" role="tab" id="tab-src" aria-controls="panel-src" aria-selected="false" class="tab">
+                Run from source
+              </button>
+              <button type="button" role="tab" id="tab-demo" aria-controls="panel-demo" aria-selected="false" class="tab">
+                No API key demo
+              </button>
+            </div>
+
+            <!-- ---------------------------------------------- tab 1 -->
+            <div class="panel is-active" id="panel-cli" role="tabpanel" aria-labelledby="tab-cli" tabindex="0">
+              <p class="panel-lede">
+                The packaged CLI from the <strong>v0.2.0 release</strong>. Requires
+                <strong>Node.js ≥ 22.14</strong>.
+              </p>
+
+              <ol class="steps">
+                <li class="step">
+                  <div class="step-head"><span class="step-num">1</span> Download the package</div>
+                  <div class="code" data-code="curl -L -O https://github.com/geohot0199/sentinental/raw/refs/tags/v0.2.0/releases/sentinel-strike-team-v0.2.0.tgz"><pre><code>curl -L -O https://github.com/geohot0199/sentinental/raw/refs/tags/v0.2.0/releases/sentinel-strike-team-v0.2.0.tgz</code></pre></div>
+                  <p class="step-note">
+                    Or just press <strong>Download</strong> — it goes to the GitHub release page.
+                  </p>
+                </li>
+                <li class="step">
+                  <div class="step-head"><span class="step-num">2</span> Verify (optional)</div>
+                  <div class="code" data-code="sha256sum sentinel-strike-team-v0.2.0.tgz"><pre><code>sha256sum sentinel-strike-team-v0.2.0.tgz
+# b14628e81bbcd73dc46429bb238b04a71c5524420a618a6757d4c89d9f5cef5c</code></pre></div>
+                </li>
+                <li class="step">
+                  <div class="step-head"><span class="step-num">3</span> Install globally</div>
+                  <div class="code" data-code="npm install --global sentinel-strike-team-v0.2.0.tgz"><pre><code>npm install --global sentinel-strike-team-v0.2.0.tgz</code></pre></div>
+                  <p class="step-note">
+                    One-liner instead:
+                    <code>npm install --global https://github.com/geohot0199/sentinental/raw/refs/tags/v0.2.0/releases/sentinel-strike-team-v0.2.0.tgz</code>
+                  </p>
+                </li>
+                <li class="step">
+                  <div class="step-head"><span class="step-num">4</span> Add your keys</div>
+                  <div class="code" data-code="cp .env.example .env"><pre><code>cp .env.example .env   # then add your provider + GitHub keys</code></pre></div>
+                </li>
+                <li class="step">
+                  <div class="step-head"><span class="step-num">5</span> Run it</div>
+                  <div class="code" data-code="sentinel --help&#10;sentinel"><pre><code>sentinel --help
+sentinel</code></pre></div>
+                </li>
+              </ol>
+            </div>
+
+            <!-- ---------------------------------------------- tab 2 -->
+            <div class="panel" id="panel-src" role="tabpanel" aria-labelledby="tab-src" tabindex="0" hidden>
+              <p class="panel-lede">
+                Full source, with the web console and the MCP tool server. Needs the TrueForge
+                harness running alongside it.
+              </p>
+
+              <ol class="steps">
+                <li class="step">
+                  <div class="step-head">
+                    <span class="step-num">1</span> Start the TrueForge harness
+                  </div>
+                  <div class="code" data-code="npx @truefoundry/trueforge@latest"><pre><code>npx @truefoundry/trueforge@latest</code></pre></div>
+                  <p class="step-note">Keep it running in a separate terminal.</p>
+                </li>
+                <li class="step">
+                  <div class="step-head"><span class="step-num">2</span> Clone and install</div>
+                  <div class="code" data-code="git clone https://github.com/geohot0199/sentinental.git&#10;cd sentinental&#10;npm install"><pre><code>git clone https://github.com/geohot0199/sentinental.git
 cd sentinental
-npm install</pre></div>
+npm install</code></pre></div>
+                </li>
+                <li class="step">
+                  <div class="step-head"><span class="step-num">3</span> Configure</div>
+                  <div class="code" data-code="cp .env.example .env"><pre><code>cp .env.example .env      # then add your keys</code></pre></div>
+                </li>
+                <li class="step">
+                  <div class="step-head"><span class="step-num">4</span> Run it</div>
+                  <div class="code" data-code="npm run web"><pre><code>npm run web               # web console at http://localhost:3000</code></pre></div>
+                  <div class="code" data-code="npm run cli"><pre><code>npm run cli               # or the terminal client</code></pre></div>
+                  <div class="code" data-code="npm run mcp"><pre><code>npm run mcp               # or just the MCP tool server</code></pre></div>
+                </li>
+              </ol>
+            </div>
+
+            <!-- ---------------------------------------------- tab 3 -->
+            <div class="panel" id="panel-demo" role="tabpanel" aria-labelledby="tab-demo" tabindex="0" hidden>
+              <p class="panel-lede">
+                A scripted model endpoint is included, so you can see the whole path — real advisory
+                data, real tools, real approval gate — without spending anything.
+              </p>
+
+              <ol class="steps">
+                <li class="step">
+                  <div class="step-head"><span class="step-num">1</span> Start the scripted model</div>
+                  <div class="code" data-code="node --experimental-strip-types scripts/mock-model.ts &"><pre><code>node --experimental-strip-types scripts/mock-model.ts &amp;   # terminal 1</code></pre></div>
+                </li>
+                <li class="step">
+                  <div class="step-head"><span class="step-num">2</span> Point SENTINEL at it</div>
+                  <div class="code" data-code="echo &quot;SENTINEL_DEMO_MODEL_URL=http://127.0.0.1:8899/v1&quot; >> .env"><pre><code>echo "SENTINEL_DEMO_MODEL_URL=http://127.0.0.1:8899/v1" &gt;&gt; .env</code></pre></div>
+                </li>
+                <li class="step">
+                  <div class="step-head"><span class="step-num">3</span> Run the console</div>
+                  <div class="code" data-code="npm run web"><pre><code>npm run web</code></pre></div>
+                  <p class="step-note">
+                    The terminal client works the same way with <code>npm run cli</code>.
+                  </p>
+                </li>
+              </ol>
+            </div>
           </div>
-          <div class="step">
-            <div class="step-head"><span class="step-n">3</span> Run</div>
-            <div class="code-block" data-code="cp .env.example .env&#10;npm run web"><pre>cp .env.example .env
-npm run web          # http://localhost:3000</pre></div>
+
+          <!-- ------------------------------------------ requirements -->
+          <div class="req-grid reveal">
+            <div class="req-card">
+              <h3>Before you start</h3>
+              <ul class="check-list">
+                <li><span class="tick" aria-hidden="true">✓</span> <strong>Node.js ≥ 22.14</strong> — the CLI uses type stripping</li>
+                <li><span class="tick" aria-hidden="true">✓</span> <strong>One model key</strong> — OpenAI, Anthropic or Gemini</li>
+                <li><span class="tick" aria-hidden="true">✓</span> <strong>GitHub token</strong> — fine-grained PAT, Contents + Pull requests read/write</li>
+                <li><span class="tick warn" aria-hidden="true">!</span> <strong>Daytona key</strong> — recommended; without it every patch is reported unverified</li>
+              </ul>
+            </div>
+            <div class="req-card">
+              <h3>Scope your token properly</h3>
+              <p>
+                Grant the GitHub token access <strong>only</strong> to the repositories you want
+                SENTINEL to touch. It is read-only by default in spirit — the only writes are the
+                branch and the pull request, and both are gated behind you.
+              </p>
+              <p class="muted small">
+                Running a demo? Set <code>SENTINEL_ALLOW_REMOTE_WRITES=false</code> and destructive
+                tools refuse before any network call.
+              </p>
+            </div>
           </div>
         </div>
-      </div>
-      <div class="tab-panel" id="p-demo" hidden>
-        <p class="tab-desc">Scripted model endpoint. Real advisory data, real tools, real gate. Zero cost.</p>
-        <div class="steps">
-          <div class="step">
-            <div class="step-head"><span class="step-n">1</span> Start mock model</div>
-            <div class="code-block" data-code="node --experimental-strip-types scripts/mock-model.ts &"><pre>node --experimental-strip-types scripts/mock-model.ts &amp;</pre></div>
-          </div>
-          <div class="step">
-            <div class="step-head"><span class="step-n">2</span> Point SENTINEL at it</div>
-            <div class="code-block"><pre>echo "SENTINEL_DEMO_MODEL_URL=http://127.0.0.1:8899/v1" >> .env</pre></div>
-          </div>
-          <div class="step">
-            <div class="step-head"><span class="step-n">3</span> Run</div>
-            <div class="code-block" data-code="npm run web"><pre>npm run web</pre></div>
+      </section>
+
+      <!-- ============================================== configuration -->
+      <section class="section section-alt" id="configuration">
+        <div class="wrap">
+          <p class="section-kicker">Configuration</p>
+          <h2 class="reveal">Every environment variable.</h2>
+          <p class="section-lede reveal">
+            Copy <code>.env.example</code> to <code>.env</code>, fill in what you need, leave the rest
+            commented. It is git-ignored and read in exactly one place.
+          </p>
+
+          <div class="table-scroll reveal">
+            <table class="data-table">
+              <thead>
+                <tr><th scope="col">Variable</th><th scope="col">Required</th><th scope="col">Purpose</th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>OPENAI_API_KEY</code> / <code>ANTHROPIC_API_KEY</code> / <code>GEMINI_API_KEY</code></td>
+                  <td><span class="tag tag-req">one of</span></td>
+                  <td>The model. SENTINEL picks whichever it finds and selects a model from the harness's own catalog.</td>
+                </tr>
+                <tr>
+                  <td><code>MODEL_PROVIDER</code></td>
+                  <td><span class="tag">optional</span></td>
+                  <td>Force a provider: <code>openai</code> · <code>anthropic</code> · <code>google-gemini</code>.</td>
+                </tr>
+                <tr>
+                  <td><code>MODEL_ID</code></td>
+                  <td><span class="tag">optional</span></td>
+                  <td>Force a specific model. Leave unset and SENTINEL picks a sensible mid-tier model.</td>
+                </tr>
+                <tr>
+                  <td><code>GITHUB_TOKEN</code></td>
+                  <td><span class="tag tag-req">yes</span></td>
+                  <td>Reading manifests, opening pull requests. Scope it to the repos you want touched.</td>
+                </tr>
+                <tr>
+                  <td><code>SENTINEL_TARGET_REPO</code></td>
+                  <td><span class="tag">optional</span></td>
+                  <td>Default repository, as <code>owner/name</code>.</td>
+                </tr>
+                <tr>
+                  <td><code>DAYTONA_API_KEY</code></td>
+                  <td><span class="tag tag-warn">recommended</span></td>
+                  <td>Sandbox. Without it the agent is instructed to report every patch as unverified.</td>
+                </tr>
+                <tr>
+                  <td><code>SENTINEL_ALLOW_REMOTE_WRITES</code></td>
+                  <td><span class="tag">optional</span></td>
+                  <td>Hard kill switch. <code>false</code> makes destructive tools refuse before any network call.</td>
+                </tr>
+                <tr>
+                  <td><code>TRUEFORGE_URL</code></td>
+                  <td><span class="tag">optional</span></td>
+                  <td>Harness URL. Default <code>http://127.0.0.1:8790</code>.</td>
+                </tr>
+                <tr>
+                  <td><code>SENTINEL_MCP_PORT</code></td>
+                  <td><span class="tag">optional</span></td>
+                  <td>Tool server port. Default <code>8791</code>.</td>
+                </tr>
+                <tr>
+                  <td><code>SENTINEL_WEB_PORT</code></td>
+                  <td><span class="tag">optional</span></td>
+                  <td>Web console port. Default <code>3000</code>.</td>
+                </tr>
+                <tr>
+                  <td><code>SENTINEL_MCP_TOKEN</code></td>
+                  <td><span class="tag">optional</span></td>
+                  <td>Shared secret the harness uses to call SENTINEL's tool server. Unset means a fresh random token every boot.</td>
+                </tr>
+                <tr>
+                  <td><code>SENTINEL_DEMO_MODEL_URL</code></td>
+                  <td><span class="tag">optional</span></td>
+                  <td>Point at the bundled scripted model for a keyless demo run.</td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </div>
-      </div>
-    </div>
-  </div>
-</section>
+      </section>
 
-<!-- CONFIG -->
-<section class="sect sect-alt" id="config">
-  <div class="container">
-    <div class="sect-tag">CONFIGURATION</div>
-    <h2 class="sect-h2 reveal">Environment variables.</h2>
-    <p class="sect-lede reveal">Copy <code>.env.example</code> to <code>.env</code>. Fill what you need. Git-ignored, read in one place.</p>
-    <div class="table-wrap reveal">
-      <table class="tbl">
-        <thead><tr><th>Variable</th><th>Required</th><th>Purpose</th></tr></thead>
-        <tbody>
-          <tr><td><code>OPENAI_API_KEY</code> / <code>ANTHROPIC_API_KEY</code> / <code>GEMINI_API_KEY</code></td><td>one of</td><td>The model. Picks whichever it finds.</td></tr>
-          <tr><td><code>GITHUB_TOKEN</code></td><td><strong>yes</strong></td><td>Read manifests, open PRs. Scope to target repos.</td></tr>
-          <tr><td><code>SENTINEL_TARGET_REPO</code></td><td>no</td><td>Default repo as <code>owner/name</code>.</td></tr>
-          <tr><td><code>DAYTONA_API_KEY</code></td><td>recommended</td><td>Sandbox. Without it, patches reported unverified.</td></tr>
-          <tr><td><code>SENTINEL_ALLOW_REMOTE_WRITES</code></td><td>no</td><td>Kill switch. <code>false</code> = destructive tools refuse.</td></tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
-</section>
+      <!-- ==================================================== harness -->
+      <section class="section" id="harness">
+        <div class="wrap">
+          <p class="section-kicker">Why the harness is doing the work</p>
+          <h2 class="reveal">No agent loop. On purpose.</h2>
+          <p class="section-lede reveal">
+            SENTINEL contains no <code>while (toolCalls)</code>, no retry logic, no context compaction,
+            no approval state machine. All of that is TrueForge's job — reimplementing it would be
+            exactly the thin wrapper this architecture is designed to avoid.
+          </p>
 
-<!-- SAFETY -->
-<section class="sect" id="safety">
-  <div class="container">
-    <div class="sect-tag">CONTROL &amp; SAFETY</div>
-    <h2 class="sect-h2 reveal">Structural, not a prompt.</h2>
-    <p class="sect-lede reveal">Safety the model can't talk its way out of.</p>
-    <div class="safety-grid">
-      <div class="safety-card reveal">
-        <div class="safety-n">1</div>
-        <h3>Declared approval policy</h3>
-        <p>MCP tool annotations define <code>readOnlyHint</code> and <code>destructiveHint</code>. Classification lives next to implementation.</p>
-        <table class="mini-tbl">
-          <thead><tr><th>Tools</th><th>Gate</th></tr></thead>
-          <tbody>
-            <tr><td><code>scan_dependencies</code>, <code>lookup_advisories</code>, <code>assess_blast_radius</code>, <code>summarise_triage</code>, <code>propose_patch</code></td><td>none</td></tr>
-            <tr><td><code>open_pull_request</code>, <code>merge_pull_request</code></td><td><strong>yes</strong></td></tr>
-          </tbody>
-        </table>
-      </div>
-      <div class="safety-card reveal">
-        <div class="safety-n">2</div>
-        <h3>Defense in depth</h3>
-        <ul class="check-list">
-          <li>Agent spec gates <code>@destructive</code> and names both tools</li>
-          <li>Kill switch checked <strong>before any network call</strong></li>
-          <li><code>GitHubClient</code> re-checks at point of mutation</li>
-          <li>Branch names generated — model never supplies a ref</li>
-          <li>Web API only accepts approvals for real tool calls</li>
-        </ul>
-      </div>
-      <div class="safety-card reveal">
-        <div class="safety-n">3</div>
-        <h3>Fails safe</h3>
-        <p>Empty input, EOF, Escape, unparseable — all deny. <strong>Deny</strong> button holds focus in the web UI.</p>
-      </div>
-      <div class="safety-card reveal">
-        <div class="safety-n">4</div>
-        <h3>No secrets, ever</h3>
-        <ul class="check-list">
-          <li>Keys in <code>.env</code> only, git-ignored, read once</li>
-          <li>Browser never talks to harness or provider directly</li>
-          <li>Two-layer redaction on every log, tool result, SSE frame</li>
-          <li><code>npm run scan:secrets</code> fails CI on credential shapes</li>
-        </ul>
-      </div>
-    </div>
-  </div>
-</section>
+          <div class="table-scroll reveal">
+            <table class="data-table data-table-2col">
+              <thead>
+                <tr><th scope="col">Harness capability</th><th scope="col">How SENTINEL uses it</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>Agent loop</td><td>Runs the entire multi-step triage. We supply instructions and tools.</td></tr>
+                <tr><td>MCP tools</td><td>Seven domain tools over remote streamable HTTP, bearer-authenticated.</td></tr>
+                <tr><td>Human checkpoints</td><td><code>open_pull_request</code> and <code>merge_pull_request</code> are gated. The pause is real.</td></tr>
+                <tr><td>Subagents</td><td>One per advisory, so ten CVEs do not share one context window.</td></tr>
+                <tr><td>Sandbox</td><td>Patch verification runs isolated; secrets stay in the harness.</td></tr>
+                <tr><td>Session state</td><td>Sessions survive a browser refresh; the transcript replays from the harness.</td></tr>
+                <tr><td>Context engineering</td><td>Deferred tool loading and compaction, configured per agent.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
 
-<!-- VERIFIED -->
-<section class="sect sect-alt" id="verified">
-  <div class="container">
-    <div class="sect-tag">VERIFIED, NOT ASSERTED</div>
-    <h2 class="sect-h2 reveal">Run against the real harness.</h2>
-    <div class="term-grid">
-      <div class="term reveal">
-        <div class="term-bar"><span class="term-dot"></span><span class="term-dot"></span><span class="term-dot"></span><span class="term-title">unit tests</span></div>
-        <pre class="term-body-code"><span class="c">$ npm test</span>
+      <!-- ===================================================== safety -->
+      <section class="section section-alt" id="safety">
+        <div class="wrap">
+          <p class="section-kicker">Control and safety</p>
+          <h2 class="reveal">Structural, not a prompt the model can talk its way out of.</h2>
+
+          <div class="safety-grid">
+            <article class="safety-card reveal">
+              <span class="safety-num">1</span>
+              <h3>The approval policy is declared on the tool, once</h3>
+              <p>
+                TrueForge resolves its <code>@read-only</code> / <code>@write</code> /
+                <code>@destructive</code> approval selectors from MCP tool annotations. The
+                classification lives next to the implementation, and both front ends inherit it
+                automatically.
+              </p>
+              <div class="table-scroll">
+                <table class="mini-table">
+                  <thead><tr><th scope="col">Tool</th><th scope="col">Annotation</th><th scope="col">Approval</th></tr></thead>
+                  <tbody>
+                    <tr>
+                      <td><code>scan_dependencies</code>, <code>lookup_advisories</code>, <code>assess_blast_radius</code>, <code>summarise_triage</code>, <code>propose_patch</code></td>
+                      <td><code>readOnlyHint</code></td>
+                      <td><span class="tag tag-safe">no</span></td>
+                    </tr>
+                    <tr>
+                      <td><code>open_pull_request</code>, <code>merge_pull_request</code></td>
+                      <td><code>destructiveHint</code></td>
+                      <td><span class="tag tag-req">yes</span></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <p class="card-foot">
+                A read-only tool cannot mutate a remote. Anything touching GitHub state is destructive
+                by construction, so a mis-tagged tool fails closed.
+              </p>
+            </article>
+
+            <article class="safety-card reveal">
+              <span class="safety-num">2</span>
+              <h3>Defence in depth on the irreversible path</h3>
+              <ul class="check-list">
+                <li><span class="tick" aria-hidden="true">✓</span> The agent spec gates <code>@destructive</code> <em>and</em> names both tools literally.</li>
+                <li><span class="tick" aria-hidden="true">✓</span> Destructive handlers check the kill switch <strong>before any network call</strong>.</li>
+                <li><span class="tick" aria-hidden="true">✓</span> <code>GitHubClient</code> re-checks it again at the point of mutation.</li>
+                <li><span class="tick" aria-hidden="true">✓</span> Branch names are generated by us and validated against git's ref rules — the model never supplies a ref.</li>
+                <li><span class="tick" aria-hidden="true">✓</span> The web API only accepts approvals for tool calls the harness actually raised.</li>
+              </ul>
+            </article>
+
+            <article class="safety-card reveal">
+              <span class="safety-num">3</span>
+              <h3>Failing safe, and keeping secrets out</h3>
+              <p>
+                Denial is the default everywhere: empty input, EOF, Escape, and unparseable answers all
+                deny. In the web UI the <strong>Deny</strong> button holds focus, so a stray
+                <kbd>Enter</kbd> refuses rather than approves.
+              </p>
+              <ul class="check-list">
+                <li><span class="tick" aria-hidden="true">✓</span> Keys live only in <code>.env</code>, git-ignored, read at one place.</li>
+                <li><span class="tick" aria-hidden="true">✓</span> The browser never talks to the harness or a provider directly — everything is proxied.</li>
+                <li><span class="tick" aria-hidden="true">✓</span> Two-layer redaction scrubs every log line, tool result and SSE frame: exact values plus ten credential shapes.</li>
+                <li><span class="tick" aria-hidden="true">✓</span> <code>npm run scan:secrets</code> fails the build on anything credential-shaped. It runs in CI.</li>
+              </ul>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <!-- =================================================== verified -->
+      <section class="section" id="verified">
+        <div class="wrap">
+          <p class="section-kicker">Verified, not asserted</p>
+          <h2 class="reveal">Run against the real harness.</h2>
+          <p class="section-lede reveal">
+            The end-to-end test drives the real <code>SentinelRunner</code> — the same class the CLI
+            and web app use — so it proves the shipped code path rather than a parallel
+            reimplementation.
+          </p>
+
+          <div class="terminal-grid">
+            <div class="terminal reveal">
+              <div class="terminal-bar"><span>unit tests</span></div>
+              <pre class="terminal-body"><code><span class="line-cmd">$ npm test</span>
 Test Files  <span class="ok">6 passed</span> (6)
-     Tests  <span class="ok">93 passed</span> (93)</pre>
-      </div>
-      <div class="term reveal">
-        <div class="term-bar"><span class="term-dot"></span><span class="term-dot"></span><span class="term-dot"></span><span class="term-title">secret scan</span></div>
-        <pre class="term-body-code"><span class="c">$ npm run scan:secrets</span>
-<span class="ok">✓</span> Scanned 33 tracked file(s). No secrets found.</pre>
-      </div>
-      <div class="term term-wide reveal">
-        <div class="term-bar"><span class="term-dot"></span><span class="term-dot"></span><span class="term-dot"></span><span class="term-title">e2e approval gate</span></div>
-        <pre class="term-body-code"><span class="c">$ node --experimental-strip-types scripts/e2e-approval.ts</span>
+     Tests  <span class="ok">93 passed</span> (93)</code></pre>
+            </div>
+
+            <div class="terminal reveal">
+              <div class="terminal-bar"><span>secret scan</span></div>
+              <pre class="terminal-body"><code><span class="line-cmd">$ npm run scan:secrets</span>
+<span class="ok">✓</span> Scanned 33 tracked file(s). No secrets found.</code></pre>
+            </div>
+
+            <div class="terminal terminal-wide reveal">
+              <div class="terminal-bar"><span>end-to-end approval gate</span></div>
+              <pre class="terminal-body"><code><span class="line-cmd">$ node --experimental-strip-types scripts/e2e-approval.ts</span>
   <span class="ok">✓</span> harness reached our MCP tools
   <span class="ok">✓</span> live advisory data returned through the harness
   <span class="ok">✓</span> destructive tool triggered an approval gate
@@ -426,77 +702,155 @@ Test Files  <span class="ok">6 passed</span> (6)
   <span class="ok">✓</span> the approval prompt received the full tool arguments
   <span class="ok">✓</span> a read-only tool ran WITHOUT a gate
   <span class="ok">✓</span> denying the action was recorded by the harness
-  <span class="ok">ALL CHECKS PASSED</span></pre>
+  <span class="ok">ALL CHECKS PASSED</span></code></pre>
+            </div>
+          </div>
+
+          <div class="note note-bug reveal">
+            <span class="note-label">A bug this caught</span>
+            <p>
+              The SDK types imply tool calls arrive on <code>model.message</code>. In a live stream
+              they do not: they arrive incrementally across <code>model.message.delta</code> frames,
+              with the name in the first and arguments split across later ones, while the streamed
+              <code>model.message</code> is empty. A client that trusts the types shows
+              <code>unknown_tool</code> with no arguments on the approval dialog — a human being asked
+              to authorise an irreversible action with nothing to judge it by.
+            </p>
+            <p class="muted small">
+              Fixed in <code>src/harness/runner.ts</code> with a delta accumulator, and locked down by
+              six regression tests.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================================================== faq -->
+      <section class="section section-alt" id="faq">
+        <div class="wrap wrap-narrow">
+          <p class="section-kicker">Questions</p>
+          <h2 class="reveal">Straight answers.</h2>
+
+          <div class="faq reveal">
+            <details>
+              <summary>Will it open a pull request without asking me?</summary>
+              <p>
+                No. <code>open_pull_request</code> and <code>merge_pull_request</code> are annotated
+                <code>destructiveHint</code>, so the harness raises a real approval gate. The turn
+                ends and waits. Denial is the default for every hand it cannot interpret.
+              </p>
+            </details>
+            <details>
+              <summary>Do I need an API key to try it?</summary>
+              <p>
+                No. A scripted model endpoint ships with the repo, so the whole path — real advisory
+                data, real tools, real gate — runs without spending anything. See the
+                <a href="#install">No API key demo</a> tab.
+              </p>
+            </details>
+            <details>
+              <summary>Which ecosystems does it cover?</summary>
+              <p>
+                Node and npm: it reads <code>package.json</code> plus the lockfile and triages against
+                the GitHub Advisory Database, with OSV as a fallback.
+              </p>
+            </details>
+            <details>
+              <summary>What happens without a sandbox key?</summary>
+              <p>
+                The agent cannot execute or test a patch, and is explicitly instructed to report every
+                patch as <strong>unverified</strong>. It never guesses that a fix works.
+              </p>
+            </details>
+            <details>
+              <summary>Can I run it fully read-only?</summary>
+              <p>
+                Yes — set <code>SENTINEL_ALLOW_REMOTE_WRITES=false</code>. Destructive tools then
+                refuse before any network call, regardless of what the model or the approval UI says.
+              </p>
+            </details>
+            <details>
+              <summary>Could a demo recording leak a token?</summary>
+              <p>
+                Not through us. Redaction runs in two layers — exact registered values plus ten
+                credential <em>shapes</em>, so even a key the model read out of a file in the sandbox
+                is scrubbed from every log line, tool result and SSE frame.
+              </p>
+            </details>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================================================== download -->
+      <section class="section section-download" id="download">
+        <div class="wrap">
+          <div class="download-card reveal">
+            <p class="section-kicker">Get SENTINEL</p>
+            <h2>Download from GitHub.</h2>
+            <p class="download-lede">
+              Free, open source, MIT. Grab the packaged CLI from the release page — or clone the repo
+              and read every line first.
+            </p>
+
+            <div class="cta-row cta-row-center">
+              <a
+                class="btn btn-primary btn-lg"
+                href="https://github.com/geohot0199/sentinental/releases/latest"
+                target="_blank"
+                rel="noopener"
+              >
+                <svg viewBox="0 0 16 16" width="18" height="18" aria-hidden="true" fill="currentColor">
+                  <path d="M7.47 10.78a.75.75 0 0 0 1.06 0l3.75-3.75a.75.75 0 0 0-1.06-1.06L8.75 8.44V1.75a.75.75 0 0 0-1.5 0v6.69L4.78 5.97a.75.75 0 0 0-1.06 1.06zM3.75 13a.75.75 0 0 0 0 1.5h8.5a.75.75 0 0 0 0-1.5z" />
+                </svg>
+                Download v0.2.0
+              </a>
+              <a class="btn btn-ghost btn-lg" href="https://github.com/geohot0199/sentinental" target="_blank" rel="noopener">
+                Star on GitHub
+                <span class="star-count" id="starCount" hidden></span>
+              </a>
+            </div>
+
+            <div class="download-alt">
+              <a href="https://github.com/geohot0199/sentinental/raw/refs/tags/v0.2.0/releases/sentinel-strike-team-v0.2.0.tgz" target="_blank" rel="noopener">sentinel-strike-team-v0.2.0.tgz · 96 KB</a>
+              <span class="sep" aria-hidden="true">·</span>
+              <a href="https://github.com/geohot0199/sentinental/archive/refs/heads/main.zip" target="_blank" rel="noopener">source .zip</a>
+              <span class="sep" aria-hidden="true">·</span>
+              <a href="https://github.com/geohot0199/sentinental/raw/refs/tags/v0.2.0/releases/SHA256SUMS.txt" target="_blank" rel="noopener">checksums</a>
+              <span class="sep" aria-hidden="true">·</span>
+              <a href="https://github.com/geohot0199/sentinental/issues" target="_blank" rel="noopener">issues</a>
+            </div>
+
+            <div class="code code-wide" data-code="git clone https://github.com/geohot0199/sentinental.git"><pre><code>git clone https://github.com/geohot0199/sentinental.git</code></pre></div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- ====================================================== footer -->
+    <footer class="site-footer">
+      <div class="wrap footer-inner">
+        <div class="footer-brand">
+          <span class="brand-mark" aria-hidden="true">◆</span>
+          <p>
+            <strong>SENTINEL</strong> — an autonomous supply-chain CVE strike team, built on the
+            <a href="https://github.com/truefoundry/trueforge" target="_blank" rel="noopener">TrueForge</a>
+            agent harness.
+          </p>
+        </div>
+        <nav class="footer-links" aria-label="Footer">
+          <a href="https://github.com/geohot0199/sentinental" target="_blank" rel="noopener">GitHub</a>
+          <a href="https://github.com/geohot0199/sentinental/releases/latest" target="_blank" rel="noopener">Releases</a>
+          <a href="https://github.com/geohot0199/sentinental/blob/main/docs/ARCHITECTURE.md" target="_blank" rel="noopener">Architecture</a>
+          <a href="https://github.com/geohot0199/sentinental/blob/main/LICENSE" target="_blank" rel="noopener">MIT licence</a>
+        </nav>
       </div>
-    </div>
-  </div>
-</section>
+    </footer>
 
-<!-- FAQ -->
-<section class="sect" id="faq">
-  <div class="container narrow">
-    <div class="sect-tag">QUESTIONS</div>
-    <h2 class="sect-h2 reveal">Straight answers.</h2>
-    <div class="faq reveal">
-      <details>
-        <summary>Will it open a PR without asking?</summary>
-        <p>No. <code>open_pull_request</code> and <code>merge_pull_request</code> are <code>destructiveHint</code>. The harness raises a real gate. The turn ends and waits.</p>
-      </details>
-      <details>
-        <summary>Do I need an API key to try it?</summary>
-        <p>No. A scripted model ships with the repo. See the <a href="#install">No-Key Demo</a> tab.</p>
-      </details>
-      <details>
-        <summary>Which ecosystems?</summary>
-        <p>Node/npm. Reads <code>package.json</code> + lockfile, triages against GitHub Advisory Database with OSV fallback.</p>
-      </details>
-      <details>
-        <summary>What without a sandbox key?</summary>
-        <p>Every patch is reported as <strong>unverified</strong>. It never guesses a fix works.</p>
-      </details>
-      <details>
-        <summary>Can I run read-only?</summary>
-        <p>Yes. <code>SENTINEL_ALLOW_REMOTE_WRITES=false</code>. Destructive tools refuse before any network call.</p>
-      </details>
-    </div>
-  </div>
-</section>
+    <button class="to-top" id="toTop" type="button" aria-label="Back to top" hidden>
+      <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" fill="currentColor">
+        <path d="M8.53 1.72a.75.75 0 0 0-1.06 0L3.72 5.47a.75.75 0 1 0 1.06 1.06L7.25 4.06v9.19a.75.75 0 0 0 1.5 0V4.06l2.47 2.47a.75.75 0 1 0 1.06-1.06Z" />
+      </svg>
+    </button>
 
-<!-- DOWNLOAD -->
-<section class="sect sect-dark" id="download">
-  <div class="container center">
-    <div class="sect-tag">GET SENTINEL</div>
-    <h2 class="sect-h2 reveal">Download from GitHub.</h2>
-    <p class="sect-lede center reveal">Free. Open source. MIT.</p>
-    <div class="hero-actions center reveal">
-      <a href="https://github.com/geohot0199/sentinental/releases/latest" class="btn btn-w btn-lg" target="_blank" rel="noopener">Download v0.2.0</a>
-      <a href="https://github.com/geohot0199/sentinental" class="btn btn-o btn-lg" target="_blank" rel="noopener">Star on GitHub</a>
-    </div>
-    <div class="install-box center reveal">
-      <code id="gitClone">git clone https://github.com/geohot0199/sentinental.git</code>
-      <button class="copy-btn" data-copy="gitClone" aria-label="Copy">COPY</button>
-    </div>
-  </div>
-</section>
-
-<!-- FOOTER -->
-<footer class="foot">
-  <div class="container foot-inner">
-    <div class="foot-brand">
-      <span class="logo-block sm">■</span>
-      <span><strong>SENTINEL</strong> — built on <a href="https://github.com/truefoundry/trueforge" target="_blank" rel="noopener">TrueForge</a></span>
-    </div>
-    <div class="foot-links">
-      <a href="https://github.com/geohot0199/sentinental" target="_blank" rel="noopener">GitHub</a>
-      <a href="https://github.com/geohot0199/sentinental/releases" target="_blank" rel="noopener">Releases</a>
-      <a href="https://github.com/geohot0199/sentinental/blob/main/docs/ARCHITECTURE.md" target="_blank" rel="noopener">Architecture</a>
-      <a href="https://github.com/geohot0199/sentinental/blob/main/LICENSE" target="_blank" rel="noopener">MIT</a>
-    </div>
-  </div>
-</footer>
-
-<button class="to-top" id="toTop" aria-label="Back to top" hidden>↑</button>
-
-<script src="app.js" defer></script>
-</body>
+    <script src="app.js" defer></script>
+  </body>
 </html>
