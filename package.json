@@ -1,6 +1,6 @@
 {
   "name": "sentinel-strike-team",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "SENTINEL - an autonomous supply-chain CVE strike team built on the TrueForge agent harness",
   "license": "MIT",
@@ -9,10 +9,18 @@
     "node": ">=22.14"
   },
   "bin": {
-    "sentinel": "./dist/cli/index.js"
+    "sentinel": "./dist/src/cli/index.js"
   },
+  "files": [
+    "dist/src",
+    "dist/scripts",
+    "README.md",
+    "LICENSE",
+    ".env.example"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
+    "prepack": "npm run build",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "mcp": "node --experimental-strip-types src/mcp/server.ts",
     "cli": "node --experimental-strip-types src/cli/index.ts",
