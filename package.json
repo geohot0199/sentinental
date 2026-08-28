@@ -1,6 +1,6 @@
 {
   "name": "sentinel-strike-team",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "SENTINEL - an autonomous supply-chain CVE strike team built on the TrueForge agent harness",
   "license": "MIT",

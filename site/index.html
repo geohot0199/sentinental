@@ -77,11 +77,12 @@
       <!-- ===================================================== hero -->
       <section class="hero">
         <div class="hero-bg" aria-hidden="true"></div>
+        <canvas class="particles-canvas" id="particlesCanvas" aria-hidden="true"></canvas>
         <div class="wrap hero-inner">
           <div class="hero-copy">
             <p class="eyebrow">
               <span class="pulse-dot" aria-hidden="true"></span>
-              v0.1.1 · MIT licensed · built on the TrueForge agent harness
+              v0.2.0 · MIT licensed · built on the TrueForge agent harness
             </p>
 
             <h1 class="hero-title">
@@ -96,6 +97,12 @@
               stops and asks a human before it opens the pull request.
             </p>
 
+            <div class="feature-badges">
+              <span class="feature-badge"><span class="dot-sm dot-cyan" aria-hidden="true"></span> Autonomous triage</span>
+              <span class="feature-badge"><span class="dot-sm dot-green" aria-hidden="true"></span> Human-in-the-loop PRs</span>
+              <span class="feature-badge"><span class="dot-sm dot-purple" aria-hidden="true"></span> Multi-agent pipeline</span>
+            </div>
+
             <div class="cta-row">
               <a
                 class="btn btn-primary"
@@ -106,7 +113,7 @@
                 <svg viewBox="0 0 16 16" width="17" height="17" aria-hidden="true" fill="currentColor">
                   <path d="M7.47 10.78a.75.75 0 0 0 1.06 0l3.75-3.75a.75.75 0 0 0-1.06-1.06L8.75 8.44V1.75a.75.75 0 0 0-1.5 0v6.69L4.78 5.97a.75.75 0 0 0-1.06 1.06zM3.75 13a.75.75 0 0 0 0 1.5h8.5a.75.75 0 0 0 0-1.5z" />
                 </svg>
-                Download v0.1.1
+                Download v0.2.0
               </a>
               <a class="btn btn-ghost" href="https://github.com/geohot0199/sentinental" target="_blank" rel="noopener">
                 <svg viewBox="0 0 16 16" width="17" height="17" aria-hidden="true" fill="currentColor">
@@ -117,7 +124,7 @@
             </div>
 
             <div class="install-line">
-              <code id="quickInstall">npm install --global https://github.com/geohot0199/sentinental/raw/refs/tags/v0.1.1/releases/sentinel-strike-team-v0.1.1.tgz</code>
+              <code id="quickInstall">npm install --global https://github.com/geohot0199/sentinental/raw/refs/tags/v0.2.0/releases/sentinel-strike-team-v0.2.0.tgz</code>
               <button class="copy-btn" type="button" data-copy-target="quickInstall" aria-label="Copy install command">
                 <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true" fill="currentColor">
                   <path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z" />
@@ -208,10 +215,10 @@
         <!-- ---------------------------------------------- stat strip -->
         <div class="wrap">
           <dl class="stat-strip">
-            <div class="stat"><dt>7</dt><dd>MCP tools</dd></div>
-            <div class="stat"><dt>8</dt><dd>Pipeline stages</dd></div>
-            <div class="stat"><dt>93</dt><dd>Tests passing</dd></div>
-            <div class="stat"><dt>0</dt><dd>Secrets in logs</dd></div>
+            <div class="stat"><dt data-count="7">7</dt><dd>MCP tools</dd></div>
+            <div class="stat"><dt data-count="8">8</dt><dd>Pipeline stages</dd></div>
+            <div class="stat"><dt data-count="93">93</dt><dd>Tests passing</dd></div>
+            <div class="stat"><dt data-count="0">0</dt><dd>Secrets in logs</dd></div>
             <div class="stat"><dt>MIT</dt><dd>Licence</dd></div>
           </dl>
         </div>
@@ -353,29 +360,29 @@
             <!-- ---------------------------------------------- tab 1 -->
             <div class="panel is-active" id="panel-cli" role="tabpanel" aria-labelledby="tab-cli" tabindex="0">
               <p class="panel-lede">
-                The packaged CLI from the <strong>v0.1.1 release</strong>. Requires
+                The packaged CLI from the <strong>v0.2.0 release</strong>. Requires
                 <strong>Node.js ≥ 22.14</strong>.
               </p>
 
               <ol class="steps">
                 <li class="step">
                   <div class="step-head"><span class="step-num">1</span> Download the package</div>
-                  <div class="code" data-code="curl -L -O https://github.com/geohot0199/sentinental/raw/refs/tags/v0.1.1/releases/sentinel-strike-team-v0.1.1.tgz"><pre><code>curl -L -O https://github.com/geohot0199/sentinental/raw/refs/tags/v0.1.1/releases/sentinel-strike-team-v0.1.1.tgz</code></pre></div>
+                  <div class="code" data-code="curl -L -O https://github.com/geohot0199/sentinental/raw/refs/tags/v0.2.0/releases/sentinel-strike-team-v0.2.0.tgz"><pre><code>curl -L -O https://github.com/geohot0199/sentinental/raw/refs/tags/v0.2.0/releases/sentinel-strike-team-v0.2.0.tgz</code></pre></div>
                   <p class="step-note">
                     Or just press <strong>Download</strong> — it goes to the GitHub release page.
                   </p>
                 </li>
                 <li class="step">
                   <div class="step-head"><span class="step-num">2</span> Verify (optional)</div>
-                  <div class="code" data-code="sha256sum sentinel-strike-team-v0.1.1.tgz"><pre><code>sha256sum sentinel-strike-team-v0.1.1.tgz
+                  <div class="code" data-code="sha256sum sentinel-strike-team-v0.2.0.tgz"><pre><code>sha256sum sentinel-strike-team-v0.2.0.tgz
 # 492cc21c7c199d7bc22f8eaf5166eea8834e10b58ac960b99a350e8892ea1dfc</code></pre></div>
                 </li>
                 <li class="step">
                   <div class="step-head"><span class="step-num">3</span> Install globally</div>
-                  <div class="code" data-code="npm install --global sentinel-strike-team-v0.1.1.tgz"><pre><code>npm install --global sentinel-strike-team-v0.1.1.tgz</code></pre></div>
+                  <div class="code" data-code="npm install --global sentinel-strike-team-v0.2.0.tgz"><pre><code>npm install --global sentinel-strike-team-v0.2.0.tgz</code></pre></div>
                   <p class="step-note">
                     One-liner instead:
-                    <code>npm install --global https://github.com/geohot0199/sentinental/raw/refs/tags/v0.1.1/releases/sentinel-strike-team-v0.1.1.tgz</code>
+                    <code>npm install --global https://github.com/geohot0199/sentinental/raw/refs/tags/v0.2.0/releases/sentinel-strike-team-v0.2.0.tgz</code>
                   </p>
                 </li>
                 <li class="step">
@@ -794,7 +801,7 @@ Test Files  <span class="ok">6 passed</span> (6)
                 <svg viewBox="0 0 16 16" width="18" height="18" aria-hidden="true" fill="currentColor">
                   <path d="M7.47 10.78a.75.75 0 0 0 1.06 0l3.75-3.75a.75.75 0 0 0-1.06-1.06L8.75 8.44V1.75a.75.75 0 0 0-1.5 0v6.69L4.78 5.97a.75.75 0 0 0-1.06 1.06zM3.75 13a.75.75 0 0 0 0 1.5h8.5a.75.75 0 0 0 0-1.5z" />
                 </svg>
-                Download v0.1.1
+                Download v0.2.0
               </a>
               <a class="btn btn-ghost btn-lg" href="https://github.com/geohot0199/sentinental" target="_blank" rel="noopener">
                 Star on GitHub
@@ -803,11 +810,11 @@ Test Files  <span class="ok">6 passed</span> (6)
             </div>
 
             <div class="download-alt">
-              <a href="https://github.com/geohot0199/sentinental/raw/refs/tags/v0.1.1/releases/sentinel-strike-team-v0.1.1.tgz" target="_blank" rel="noopener">sentinel-strike-team-v0.1.1.tgz · 71 KB</a>
+              <a href="https://github.com/geohot0199/sentinental/raw/refs/tags/v0.2.0/releases/sentinel-strike-team-v0.2.0.tgz" target="_blank" rel="noopener">sentinel-strike-team-v0.2.0.tgz · 71 KB</a>
               <span class="sep" aria-hidden="true">·</span>
               <a href="https://github.com/geohot0199/sentinental/archive/refs/heads/main.zip" target="_blank" rel="noopener">source .zip</a>
               <span class="sep" aria-hidden="true">·</span>
-              <a href="https://github.com/geohot0199/sentinental/raw/refs/tags/v0.1.1/releases/SHA256SUMS.txt" target="_blank" rel="noopener">checksums</a>
+              <a href="https://github.com/geohot0199/sentinental/raw/refs/tags/v0.2.0/releases/SHA256SUMS.txt" target="_blank" rel="noopener">checksums</a>
               <span class="sep" aria-hidden="true">·</span>
               <a href="https://github.com/geohot0199/sentinental/issues" target="_blank" rel="noopener">issues</a>
             </div>
