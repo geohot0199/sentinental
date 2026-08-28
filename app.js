@@ -281,7 +281,7 @@
         if (p.y < 0 || p.y > particlesCanvas.height) p.speedY *= -1;
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-        ctx.fillStyle = "rgba(34, 211, 238, " + p.opacity + ")";
+        ctx.fillStyle = "rgba(255, 255, 255, " + p.opacity + ")";
         ctx.fill();
       }
       // Draw connection lines between close particles
@@ -294,7 +294,7 @@
             ctx.beginPath();
             ctx.moveTo(particles[a].x, particles[a].y);
             ctx.lineTo(particles[b].x, particles[b].y);
-            ctx.strokeStyle = "rgba(34, 211, 238, " + (0.06 * (1 - dist / 120)) + ")";
+            ctx.strokeStyle = "rgba(255, 255, 255, " + (0.06 * (1 - dist / 120)) + ")";
             ctx.lineWidth = 0.5;
             ctx.stroke();
           }
