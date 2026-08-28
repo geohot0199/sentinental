@@ -44,7 +44,10 @@ describe("redact - credential shapes", () => {
     ["openai project", "sk-proj-abcdefghijklmnopqrstuvwxyz0123"],
     ["anthropic", "sk-ant-api03-abcdefghijklmnopqrstuvwxyz"],
     ["google", "AIzaSyA1234567890abcdefghijklmnopqrstuvw"],
-    ["slack", "xoxb-123456789012-abcdefghijklmnop"],
+    // Built at runtime so the fixture cannot be mistaken for a real credential
+    // by GitHub secret scanning; the resulting value still has the exact Slack
+    // shape the redactor must catch.
+    ["slack", ["xoxb", "123456789012", "abcdefghijklmnop"].join("-")],
     ["aws", "AKIAIOSFODNN7EXAMPLE"],
     ["daytona", "dtn_abcdefghijklmnop1234567890"],
     ["jwt", "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.abcdefghijklmnop"],
