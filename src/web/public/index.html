@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SENTINEL — supply-chain strike team</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛡️</text></svg>"
+    />
+  </head>
+  <body>
+    <div class="app">
+      <header class="topbar">
+        <div class="brand">
+          <span class="mark" aria-hidden="true">◆</span>
+          <div>
+            <h1>SENTINEL</h1>
+            <p>supply-chain strike team · running on TrueForge</p>
+          </div>
+        </div>
+        <div class="capabilities" id="capabilities" role="status" aria-live="polite"></div>
+      </header>
+
+      <main class="layout">
+        <section class="stream-pane">
+          <div class="stream" id="stream" role="log" aria-live="polite" aria-label="Agent activity">
+            <div class="empty" id="empty">
+              <h2>Hand the agent a repository.</h2>
+              <p>
+                It will inventory the dependency tree, triage every advisory against the installed
+                versions, assess how risky each upgrade is, and prepare a patch.
+              </p>
+              <p class="gate-note">
+                It stops and asks you before it opens a pull request.
+              </p>
+              <div class="suggestions" id="suggestions"></div>
+            </div>
+          </div>
+
+          <div class="composer">
+            <textarea
+              id="input"
+              rows="2"
+              placeholder="Triage the dependencies in owner/repo and prepare a fix…"
+              aria-label="Task for the agent"
+            ></textarea>
+            <div class="composer-actions">
+              <button id="cancel" class="ghost" type="button" hidden>Stop</button>
+              <button id="send" class="primary" type="button">Run</button>
+            </div>
+          </div>
+        </section>
+
+        <aside class="side-pane">
+          <div class="side-block">
+            <h3>Status</h3>
+            <div id="turn-status" class="status-idle">Idle</div>
+          </div>
+          <div class="side-block">
+            <h3>Tool activity</h3>
+            <ol class="tool-list" id="tool-list">
+              <li class="muted">Nothing yet.</li>
+            </ol>
+          </div>
+          <div class="side-block">
+            <h3>Subagents</h3>
+            <ul class="subagent-list" id="subagent-list">
+              <li class="muted">None spawned.</li>
+            </ul>
+          </div>
+        </aside>
+      </main>
+    </div>
+
+    <!-- The approval gate. Modal and blocking, because the action is irreversible. -->
+    <div class="overlay" id="approval-overlay" hidden>
+      <div
+        class="approval-card"
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="approval-title"
+        aria-describedby="approval-desc"
+      >
+        <div class="approval-head">
+          <span class="pulse" aria-hidden="true"></span>
+          <div>
+            <h2 id="approval-title">Approval required</h2>
+            <p id="approval-desc">
+              The agent has paused. This action cannot be undone, and it will not proceed
+              until you decide.
+            </p>
+          </div>
+        </div>
+        <div class="approval-body" id="approval-body"></div>
+        <div class="approval-actions">
+          <button id="deny" class="danger-ghost" type="button">Deny</button>
+          <button id="approve" class="danger" type="button">Approve and continue</button>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>
