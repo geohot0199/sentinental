@@ -296,6 +296,11 @@ export function buildWebApp(
       "content-type": "text/css; charset=utf-8",
     }),
   );
+  app.get("/webmcp-bundle.js", (c) =>
+    c.body(readFileSync(join(HERE, "public", "webmcp-bundle.js"), "utf8"), 200, {
+      "content-type": "text/javascript; charset=utf-8",
+    }),
+  );
 
   return app;
 }

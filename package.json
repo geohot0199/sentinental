@@ -1,8 +1,8 @@
 {
   "name": "sentinel-strike-team",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
-  "description": "SENTINEL - an autonomous supply-chain CVE strike team built on the TrueForge agent harness",
+  "description": "SENTINEL OMNI-LAB - The World's First 5-in-1 Agent-Native Frontier Operating System built on the W3C/OpenAI WebMCP Standard",
   "license": "MIT",
   "type": "module",
   "engines": {
