@@ -1,0 +1,22 @@
+# Secrets — never commit these
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# Dependencies and build output
+node_modules/
+dist/
+coverage/
+
+# Local state
+*.sqlite
+*.sqlite-journal
+.sentinel/
+
+# Editor and OS noise
+.DS_Store
+.idea/
+.vscode/
+*.log
