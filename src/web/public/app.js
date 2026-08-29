@@ -690,20 +690,30 @@ app.post('/api/webhook', (req, res) => {
   function initZkEscrow() {
     renderContract();
 
+    // Pre-fill the contractual deliverable so the demo verify flow matches the
+    // real SHA-256 digest instead of relying on a bypass.
+    const deliverableInput = document.getElementById('deliverableContent');
+    if (deliverableInput && currentContract.milestones[0] && currentContract.milestones[0].expectedContent) {
+      deliverableInput.value = currentContract.milestones[0].expectedContent;
+    }
+
     document.getElementById('initEscrowDemoBtn')?.addEventListener('click', () => {
       currentContract = ZkEscrow.DEMO_CONTRACT;
+      if (deliverableInput && currentContract.milestones[0] && currentContract.milestones[0].expectedContent) {
+        deliverableInput.value = currentContract.milestones[0].expectedContent;
+      }
       renderContract();
     });
 
     document.getElementById('verifyDeliverableBtn')?.addEventListener('click', () => {
-      const deliverableInput = document.getElementById('deliverableContent');
       const content = (deliverableInput && deliverableInput.value) || '';
       const sha = ZkEscrow.calculateSha256(content);
       const shaEl = document.getElementById('computedSha256');
       if (shaEl) shaEl.textContent = `${sha.slice(0, 16)}...${sha.slice(-8)}`;
 
       const result = ZkEscrow.verifyMilestoneDeliverable(currentContract, 'M-1', content, [
-        { description: 'AST Sanitization verified', pass: true }
+        { description: 'No dynamic eval() statements', pass: !content.includes('eval(') },
+        { description: 'Exports sanitized handler', pass: content.includes('function') }
       ]);
 
       renderContract();
@@ -711,7 +721,6 @@ app.post('/api/webhook', (req, res) => {
     });
 
     document.getElementById('btnRunAcceptanceTests')?.addEventListener('click', () => {
-      const deliverableInput = document.getElementById('deliverableContent');
       const content = (deliverableInput && deliverableInput.value) || '';
       const result = ZkEscrow.verifyMilestoneDeliverable(currentContract, 'M-1', content, [
         { description: 'No dynamic eval() statements', pass: !content.includes('eval(') },
@@ -721,10 +730,14 @@ app.post('/api/webhook', (req, res) => {
     });
 
     document.getElementById('btnSignEscrowRelease')?.addEventListener('click', () => {
-      const proof = ZkEscrow.signEscrowRelease(currentContract, 'M-1');
-      const proofOut = document.getElementById('proofJsonOutput');
-      if (proofOut) proofOut.textContent = JSON.stringify(proof, null, 2);
-      renderContract();
+      try {
+        const proof = ZkEscrow.signEscrowRelease(currentContract, 'M-1');
+        const proofOut = document.getElementById('proofJsonOutput');
+        if (proofOut) proofOut.textContent = JSON.stringify(proof, null, 2);
+        renderContract();
+      } catch (err) {
+        alert(`Release refused: ${err.message}`);
+      }
     });
   }
 
@@ -803,25 +816,61 @@ app.post('/api/webhook', (req, res) => {
     const stream = document.getElementById('agentExecutionStream');
     if (!stream) return;
 
+    // Operator-controlled prompt text is inserted with textContent, never
+    // innerHTML, so markup or event handlers in the input cannot execute.
     const userMsg = document.createElement('div');
     userMsg.className = 'agent-msg user';
-    userMsg.innerHTML = `<div class="msg-meta">OPERATOR</div><div class="msg-body">${prompt}</div>`;
+    const userMeta = document.createElement('div');
+    userMeta.className = 'msg-meta';
+    userMeta.textContent = 'OPERATOR';
+    const userBody = document.createElement('div');
+    userBody.className = 'msg-body';
+    userBody.textContent = prompt;
+    userMsg.appendChild(userMeta);
+    userMsg.appendChild(userBody);
     stream.appendChild(userMsg);
     stream.scrollTop = stream.scrollHeight;
 
     const appendAssistant = (text, toolCall) => {
       const asstMsg = document.createElement('div');
       asstMsg.className = 'agent-msg assistant';
-      let content = `<div class="msg-meta">WEBMCP AUTONOMOUS AGENT</div><div class="msg-body">${text}</div>`;
+
+      const meta = document.createElement('div');
+      meta.className = 'msg-meta';
+      meta.textContent = 'WEBMCP AUTONOMOUS AGENT';
+
+      const body = document.createElement('div');
+      body.className = 'msg-body';
+      body.textContent = text;
+
+      asstMsg.appendChild(meta);
+      asstMsg.appendChild(body);
+
       if (toolCall) {
-        content += `
-          <div class="tool-invoked-box">
-            <div><span class="tool-name-badge">invokeTool:</span> <code>${toolCall.name}</code></div>
-            <pre style="color: #7dd3fc; margin-top: 4px; overflow: auto; max-height: 90px;">${JSON.stringify(toolCall.result, null, 2)}</pre>
-          </div>
-        `;
+        const box = document.createElement('div');
+        box.className = 'tool-invoked-box';
+
+        const head = document.createElement('div');
+        const badge = document.createElement('span');
+        badge.className = 'tool-name-badge';
+        badge.textContent = 'invokeTool:';
+        const codeEl = document.createElement('code');
+        codeEl.textContent = toolCall.name;
+        head.appendChild(badge);
+        head.appendChild(codeEl);
+
+        const pre = document.createElement('pre');
+        pre.style.color = '#7dd3fc';
+        pre.style.marginTop = '4px';
+        pre.style.overflow = 'auto';
+        pre.style.maxHeight = '90px';
+        pre.textContent = JSON.stringify(toolCall.result, null, 2);
+
+        box.appendChild(head);
+        box.appendChild(pre);
+        asstMsg.appendChild(box);
       }
-      asstMsg.innerHTML = content;
+
       stream.appendChild(asstMsg);
       stream.scrollTop = stream.scrollHeight;
     };

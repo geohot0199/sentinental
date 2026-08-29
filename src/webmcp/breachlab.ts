@@ -59,6 +59,8 @@ export interface DetonationEvent {
 
 export interface DetonationReport {
   success: boolean;
+  /** True when the scan was cut short because the configured window elapsed. */
+  timedOut: boolean;
   executionTimeMs: number;
   interceptedEvents: DetonationEvent[];
   quarantinedThreats: string[];
@@ -311,9 +313,21 @@ export function detonateSandbox(
   const quarantinedThreats: string[] = [];
   const stdout: string[] = [];
 
+  // The advertised execution window is honoured: when a timeout is configured
+  // the scan stops the moment the deadline passes instead of running unbounded
+  // on attacker-controlled input and blocking the thread past the promise.
+  const timeoutMs = config?.timeoutMs;
+  const deadline = typeof timeoutMs === 'number' && timeoutMs >= 0 ? startTime + timeoutMs : null;
+  let timedOut = false;
+
   // Inspect code execution steps safely via virtualized interpreter
   const lines = code.split('\n');
   for (let i = 0; i < lines.length; i++) {
+    if (deadline !== null && Date.now() > deadline) {
+      timedOut = true;
+      break;
+    }
+
     const rawLine = lines[i];
     if (rawLine === undefined) continue;
     const line = rawLine.trim();
@@ -377,11 +391,16 @@ export function detonateSandbox(
     }
   }
 
-  const executionTimeMs = Math.max(12, Date.now() - startTime);
-  const safeToRun = quarantinedThreats.length === 0 && interceptedEvents.length === 0;
+  const executionTimeMs = Math.max(0, Date.now() - startTime);
+  const safeToRun = quarantinedThreats.length === 0 && interceptedEvents.length === 0 && !timedOut;
+
+  if (timedOut) {
+    stdout.push(`[Sandbox execution window (${timeoutMs}ms) exceeded - scan aborted before completion.]`);
+  }
 
   return {
-    success: true,
+    success: !timedOut,
+    timedOut,
     executionTimeMs,
     interceptedEvents,
     quarantinedThreats,

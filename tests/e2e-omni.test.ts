@@ -180,10 +180,10 @@ describe('SENTINEL OMNI-LAB: End-to-End Robustness & Security Verification', () 
     });
 
     it('verifies deliverable assertions and approves compliant milestones', () => {
-      const contract = ZkEscrow.createEscrowContract('Dev Alice', 'Client Bob', [
-        { title: 'Secure Gateway', payoutAmountUsd: 1200, acceptanceCriteria: ['Must export gateway'] }
-      ]);
       const deliverable = 'export function gateway() { return "secure"; }';
+      const contract = ZkEscrow.createEscrowContract('Dev Alice', 'Client Bob', [
+        { title: 'Secure Gateway', payoutAmountUsd: 1200, expectedContent: deliverable, acceptanceCriteria: ['Must export gateway'] }
+      ]);
       const verification = ZkEscrow.verifyMilestoneDeliverable(contract, 'M-1', deliverable, [
         { description: 'Must export gateway', pass: true }
       ]);
@@ -191,12 +191,16 @@ describe('SENTINEL OMNI-LAB: End-to-End Robustness & Security Verification', () 
     });
 
     it('signs cryptographic release proof and marks milestone as RELEASED', () => {
+      const deliverable = 'export function gateway() { return "secure"; }';
       const contract = ZkEscrow.createEscrowContract('Dev Alice', 'Client Bob', [
-        { title: 'Secure Gateway', payoutAmountUsd: 1200, acceptanceCriteria: ['Must export gateway'] }
+        { title: 'Secure Gateway', payoutAmountUsd: 1200, expectedContent: deliverable, acceptanceCriteria: ['Must export gateway'] }
+      ]);
+      ZkEscrow.verifyMilestoneDeliverable(contract, 'M-1', deliverable, [
+        { description: 'Must export gateway', pass: true }
       ]);
       const proof = ZkEscrow.signEscrowRelease(contract, 'M-1');
       expect(proof.releasedAmountUsd).toBe(1200);
-      expect(proof.arbiterSignature).toContain('SIG-ECDSA-ED25519-');
+      expect(proof.arbiterSignature).toContain('SIG-HMAC-SHA256-');
       expect(contract.milestones[0]?.status).toBe('RELEASED');
     });
   });
