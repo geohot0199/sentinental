@@ -41,6 +41,19 @@ describe('ChronoForensic OSINT Engine (Module 3)', () => {
     expect(dossier.incidentId).toBe('INCIDENT-2026-X09');
     expect(dossier.synchronizedFeeds.length).toBe(3);
     expect(dossier.timelineSequence.length).toBeGreaterThan(0);
-    expect(dossier.forensicHash).toMatch(/^SHA256-SYNTH-/);
+    // Real SHA-256 hex digest over the canonical dossier payload.
+    expect(dossier.forensicHash).toMatch(/^[a-f0-9]{64}$/);
+  });
+
+  it('produces a different evidence hash when the evidence changes', () => {
+    const a = buildForensicDossier('INCIDENT-2026-X09', DEMO_FEEDS);
+    // Shifting an arrival time changes the triangulated origin, which must
+    // change the dossier's integrity hash.
+    const mutated = DEMO_FEEDS.map((f, i) => ({
+      ...f,
+      acousticEvents: f.acousticEvents.map((e) => ({ ...e, timestampSec: e.timestampSec + i }))
+    }));
+    const b = buildForensicDossier('INCIDENT-2026-X09', mutated);
+    expect(a.forensicHash).not.toBe(b.forensicHash);
   });
 });

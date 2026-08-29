@@ -4,6 +4,110 @@
  */
 
 // ==========================================
+// 0. CRYPTOGRAPHIC PRIMITIVES
+// ==========================================
+// Dependency-free, synchronous SHA-256 and HMAC-SHA-256 (FIPS 180-4 / RFC 2104).
+// These replace the old 32-bit rolling "hash" that was mislabelled as SHA-256,
+// so deliverable fingerprints and forensic evidence hashes are real digests.
+const SHA256_K = [
+  0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
+  0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
+  0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+  0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
+  0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
+  0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+  0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
+  0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
+];
+
+function sha256Bytes(data) {
+  const H = new Uint32Array([0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19]);
+  const l = data.length;
+  const bitLenHi = Math.floor(l / 0x20000000);
+  const bitLenLo = (l << 3) >>> 0;
+  const paddedLen = ((l + 9 + 63) & ~63) >>> 0;
+
+  const msg = new Uint8Array(paddedLen);
+  msg.set(data);
+  msg[l] = 0x80;
+  const dv = new DataView(msg.buffer);
+  dv.setUint32(paddedLen - 8, bitLenHi, false);
+  dv.setUint32(paddedLen - 4, bitLenLo, false);
+
+  const w = new Uint32Array(64);
+  for (let i = 0; i < paddedLen; i += 64) {
+    for (let t = 0; t < 16; t++) w[t] = dv.getUint32(i + t * 4, false);
+    for (let t = 16; t < 64; t++) {
+      const s0 = ((w[t - 15] >>> 7) | (w[t - 15] << 25)) ^ ((w[t - 15] >>> 18) | (w[t - 15] << 14)) ^ (w[t - 15] >>> 3);
+      const s1 = ((w[t - 2] >>> 17) | (w[t - 2] << 15)) ^ ((w[t - 2] >>> 19) | (w[t - 2] << 13)) ^ (w[t - 2] >>> 10);
+      w[t] = (w[t - 16] + s0 + w[t - 7] + s1) >>> 0;
+    }
+    let a = H[0], b = H[1], c = H[2], d = H[3], e = H[4], f = H[5], g = H[6], h = H[7];
+    for (let t = 0; t < 64; t++) {
+      const S1 = ((e >>> 6) | (e << 26)) ^ ((e >>> 11) | (e << 21)) ^ ((e >>> 25) | (e << 7));
+      const ch = (e & f) ^ (~e & g);
+      const temp1 = (h + S1 + ch + SHA256_K[t] + w[t]) >>> 0;
+      const S0 = ((a >>> 2) | (a << 30)) ^ ((a >>> 13) | (a << 19)) ^ ((a >>> 22) | (a << 10));
+      const maj = (a & b) ^ (a & c) ^ (b & c);
+      const temp2 = (S0 + maj) >>> 0;
+      h = g; g = f; f = e; e = (d + temp1) >>> 0;
+      d = c; c = b; b = a; a = (temp1 + temp2) >>> 0;
+    }
+    H[0] = (H[0] + a) >>> 0; H[1] = (H[1] + b) >>> 0; H[2] = (H[2] + c) >>> 0; H[3] = (H[3] + d) >>> 0;
+    H[4] = (H[4] + e) >>> 0; H[5] = (H[5] + f) >>> 0; H[6] = (H[6] + g) >>> 0; H[7] = (H[7] + h) >>> 0;
+  }
+  const out = new Uint8Array(32);
+  const odv = new DataView(out.buffer);
+  for (let i = 0; i < 8; i++) odv.setUint32(i * 4, H[i], false);
+  return out;
+}
+
+function bytesToHex(bytes) {
+  let hex = '';
+  for (let i = 0; i < bytes.length; i++) hex += bytes[i].toString(16).padStart(2, '0');
+  return hex;
+}
+
+function utf8Bytes(str) {
+  return new TextEncoder().encode(String(str));
+}
+
+function sha256Hex(input) {
+  return bytesToHex(sha256Bytes(utf8Bytes(input)));
+}
+
+function hmacSha256Hex(keyStr, msgStr) {
+  const BLOCK = 64;
+  const key = utf8Bytes(keyStr);
+  const k = key.length > BLOCK ? sha256Bytes(key) : new Uint8Array(BLOCK);
+  if (key.length <= BLOCK) k.set(key);
+  const ipad = new Uint8Array(BLOCK);
+  const opad = new Uint8Array(BLOCK);
+  for (let i = 0; i < BLOCK; i++) {
+    ipad[i] = k[i] ^ 0x36;
+    opad[i] = k[i] ^ 0x5c;
+  }
+  const msg = utf8Bytes(msgStr);
+  const inner = new Uint8Array(BLOCK + msg.length);
+  inner.set(ipad);
+  inner.set(msg, BLOCK);
+  const outer = new Uint8Array(BLOCK + 32);
+  outer.set(opad);
+  outer.set(sha256Bytes(inner), BLOCK);
+  return bytesToHex(sha256Bytes(outer));
+}
+
+function randomHex(byteLen) {
+  const bytes = new Uint8Array(byteLen);
+  if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
+    crypto.getRandomValues(bytes);
+  } else {
+    for (let i = 0; i < byteLen; i++) bytes[i] = Math.floor(Math.random() * 256);
+  }
+  return bytesToHex(bytes);
+}
+
+// ==========================================
 // 1. BREACHLAB ENGINE
 // ==========================================
 export const BreachLab = {
@@ -210,8 +314,17 @@ export const BreachLab = {
     const quarantinedThreats = [];
     const stdout = [];
 
+    // Honour the advertised execution window instead of scanning unbounded.
+    const timeoutMs = config && config.timeoutMs;
+    const deadline = typeof timeoutMs === 'number' && timeoutMs >= 0 ? startTime + timeoutMs : null;
+    let timedOut = false;
+
     const lines = (code || '').split('\n');
     for (let i = 0; i < lines.length; i++) {
+      if (deadline !== null && Date.now() > deadline) {
+        timedOut = true;
+        break;
+      }
       const line = lines[i].trim();
       if (!line || line.startsWith('//')) continue;
 
@@ -266,11 +379,16 @@ export const BreachLab = {
       }
     }
 
-    const executionTimeMs = Math.max(12, Date.now() - startTime);
-    const safeToRun = quarantinedThreats.length === 0 && interceptedEvents.length === 0;
+    const executionTimeMs = Math.max(0, Date.now() - startTime);
+    const safeToRun = quarantinedThreats.length === 0 && interceptedEvents.length === 0 && !timedOut;
+
+    if (timedOut) {
+      stdout.push(`[Sandbox execution window (${timeoutMs}ms) exceeded - scan aborted before completion.]`);
+    }
 
     return {
-      success: true,
+      success: !timedOut,
+      timedOut,
       executionTimeMs,
       interceptedEvents,
       quarantinedThreats,
@@ -639,7 +757,7 @@ export const ChronoForensic = {
     let estZ = sumZ / feeds.length;
 
     for (let it = 0; it < 60; it++) {
-      let gradX = 0, gradY = 0;
+      let gradX = 0, gradY = 0, gradZ = 0;
       for (let i = 1; i < feeds.length; i++) {
         const fi = feeds[i];
         const pi = fi.position;
@@ -661,11 +779,17 @@ export const ChronoForensic = {
         const d_0_dy = (Math.sqrt((estX - p0.x) ** 2 + (estY + eps - p0.y) ** 2 + (estZ - p0.z) ** 2) - d_0) / eps;
         const dError_dy = (d_i_dy - d_0_dy) / this.SPEED_OF_SOUND;
 
+        const d_i_dz = (Math.sqrt((estX - pi.x) ** 2 + (estY - pi.y) ** 2 + (estZ + eps - pi.z) ** 2) - d_i) / eps;
+        const d_0_dz = (Math.sqrt((estX - p0.x) ** 2 + (estY - p0.y) ** 2 + (estZ + eps - p0.z) ** 2) - d_0) / eps;
+        const dError_dz = (d_i_dz - d_0_dz) / this.SPEED_OF_SOUND;
+
         gradX += 2 * error * dError_dx;
         gradY += 2 * error * dError_dy;
+        gradZ += 2 * error * dError_dz;
       }
       estX -= 0.05 * gradX;
       estY -= 0.05 * gradY;
+      estZ -= 0.05 * gradZ;
     }
 
     return {
@@ -677,17 +801,40 @@ export const ChronoForensic = {
   },
 
   buildForensicDossier(incidentId, feeds) {
-    const origin = { x: 0, y: 0, z: 0 };
+    const syncs = feeds.map(f => {
+      const sync = this.synchronizeOpticalFlashes(feeds[0], f);
+      return { feedId: f.id, sourceName: f.sourceName, timeOffsetMs: sync.calculatedOffsetMs };
+    });
+
+    let origin = { x: 0, y: 0, z: 0 };
+    if (feeds.length >= 3) {
+      const tri = this.triangulateAcousticOrigin(
+        feeds.map(f => ({ feedId: f.id, position: f.geoPosition, arrivalTimeSec: (f.acousticEvents[0] && f.acousticEvents[0].timestampSec) || 0 }))
+      );
+      origin = tri.estimatedSourceLocation;
+    }
+
+    const timelineSequence = [
+      { timestampMs: 0, eventLabel: 'Optical Flash Peak', detectedByFeeds: feeds.map(f => f.id), confidence: 0.98 },
+      { timestampMs: 142, eventLabel: 'Primary Shockwave Arrival', detectedByFeeds: feeds.slice(0, 2).map(f => f.id), confidence: 0.94 }
+    ];
+
+    const reconstructedUtcTimestamp = new Date().toISOString();
+    const forensicHash = sha256Hex(JSON.stringify({
+      incidentId,
+      reconstructedUtcTimestamp,
+      synchronizedFeeds: syncs,
+      originLocation: origin,
+      timelineSequence
+    }));
+
     return {
       incidentId,
-      reconstructedUtcTimestamp: new Date().toISOString(),
-      synchronizedFeeds: feeds.map(f => ({ feedId: f.id, sourceName: f.sourceName, timeOffsetMs: 0 })),
+      reconstructedUtcTimestamp,
+      synchronizedFeeds: syncs,
       originLocation: origin,
-      timelineSequence: [
-        { timestampMs: 0, eventLabel: 'Optical Flash Peak', detectedByFeeds: feeds.map(f => f.id), confidence: 0.98 },
-        { timestampMs: 142, eventLabel: 'Primary Shockwave Arrival', detectedByFeeds: feeds.slice(0, 2).map(f => f.id), confidence: 0.94 }
-      ],
-      forensicHash: `SHA256-SYNTH-8f92a10b42c9`
+      timelineSequence,
+      forensicHash
     };
   }
 };
@@ -784,15 +931,7 @@ export const MetaLoop = {
 // ==========================================
 export const ZkEscrow = {
   calculateSha256(content) {
-    // Client-side SHA-256 simulation / WebCrypto fallback
-    let hash = 0;
-    const str = String(content || '');
-    for (let i = 0; i < str.length; i++) {
-      hash = ((hash << 5) - hash) + str.charCodeAt(i);
-      hash |= 0;
-    }
-    const hex = Math.abs(hash).toString(16).padStart(8, '0');
-    return `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852${hex}`;
+    return sha256Hex(String(content ?? ''));
   },
 
   createEscrowContract(contractorName, clientName, milestones) {
@@ -800,69 +939,117 @@ export const ZkEscrow = {
       id: `M-${idx + 1}`,
       title: m.title,
       payoutAmountUsd: m.payoutAmountUsd || 1000,
-      expectedFileSha256: this.calculateSha256(m.title),
+      // Spec-only milestones hash their placeholder; milestones with an
+      // expectedContent hash that content. Both compare strictly on verify.
+      expectedContent: m.expectedContent,
+      expectedFileSha256: sha256Hex(m.expectedContent != null ? m.expectedContent : `INITIAL_SPEC_${m.title}`),
       acceptanceCriteria: m.acceptanceCriteria || ['Must pass tests'],
       status: 'PENDING'
     }));
     return {
       contractId: `CTR-${Date.now().toString(36).toUpperCase()}`,
-      clientPublicKey: `PUB_CLI_${Math.random().toString(36).slice(2, 10)}`,
-      contractorPublicKey: `PUB_CTR_${Math.random().toString(36).slice(2, 10)}`,
+      clientPublicKey: `PUB_CLI_${randomHex(4)}`,
+      contractorPublicKey: `PUB_CTR_${randomHex(4)}`,
+      arbiterAgentId: 'WebMCP-Sentinel-Arbiter-v1',
+      // Per-contract release key: never a shared hard-coded secret.
+      arbiterSecretKey: randomHex(32),
       totalEscrowAmountUsd: structured.reduce((a, m) => a + m.payoutAmountUsd, 0),
       milestones: structured,
+      createdAt: new Date().toISOString(),
       contractState: 'FUNDED'
     };
   },
 
   verifyMilestoneDeliverable(contract, milestoneId, submittedContent, testAssertions) {
-    const milestone = contract.milestones.find(m => m.id === milestoneId) || contract.milestones[0];
-    const actualSha256 = this.calculateSha256(submittedContent);
+    const milestone = contract.milestones.find(m => m.id === milestoneId);
+    if (!milestone) {
+      throw new Error(`Milestone ${milestoneId} not found in contract.`);
+    }
+    const actualSha256 = sha256Hex(String(submittedContent ?? ''));
     const failedCriteria = (testAssertions || []).filter(t => !t.pass).map(t => t.description);
     const passed = failedCriteria.length === 0;
 
-    if (passed) milestone.status = 'VERIFIED';
+    // Strict digest comparison. A deliverable matches only when its SHA-256
+    // equals the contractual digest - never by length, prefix, or assertion.
+    const hashMatch = actualSha256 === milestone.expectedFileSha256;
+
+    let arbitrationVerdict = 'REQUIRES_REMEDIATION';
+    if (hashMatch && passed) {
+      arbitrationVerdict = 'APPROVED_FOR_RELEASE';
+      milestone.status = 'VERIFIED';
+    } else if (!hashMatch) {
+      arbitrationVerdict = 'REJECTED_MISMATCH';
+      milestone.status = 'DISPUTED';
+    }
 
     return {
       milestoneId,
-      hashMatch: true,
+      hashMatch,
       actualSha256,
       expectedSha256: milestone.expectedFileSha256,
       testSuitePassed: passed,
       failedCriteria,
-      arbitrationVerdict: passed ? 'APPROVED_FOR_RELEASE' : 'REQUIRES_REMEDIATION'
+      arbitrationVerdict
     };
   },
 
-  signEscrowRelease(contract, milestoneId) {
-    const milestone = contract.milestones.find(m => m.id === milestoneId) || contract.milestones[0];
+  signEscrowRelease(contract, milestoneId, arbiterSecretKey) {
+    const milestone = contract.milestones.find(m => m.id === milestoneId);
+    if (!milestone) {
+      throw new Error(`Milestone ${milestoneId} not found.`);
+    }
+    if (milestone.status !== 'VERIFIED') {
+      throw new Error(`Milestone ${milestoneId} is ${milestone.status}, not VERIFIED. Escrow release requires a successful deliverable verification first.`);
+    }
+    if (contract.contractState === 'DRAFT') {
+      throw new Error('Escrow contract is still in DRAFT state and cannot release funds.');
+    }
+
+    const secret = arbiterSecretKey || contract.arbiterSecretKey;
+    const timestamp = new Date().toISOString();
+    const payload = `${contract.contractId}:${milestoneId}:${milestone.payoutAmountUsd}:${timestamp}`;
+    // Honest label: an HMAC-SHA-256 keyed digest, not an ECDSA/Ed25519 signature.
+    const arbiterSignature = `SIG-HMAC-SHA256-${hmacSha256Hex(secret, payload)}`;
+
     milestone.status = 'RELEASED';
+    if (contract.milestones.every(m => m.status === 'RELEASED')) {
+      contract.contractState = 'COMPLETED';
+    }
+
     return {
       contractId: contract.contractId,
       milestoneId,
       releasedAmountUsd: milestone.payoutAmountUsd,
-      arbiterSignature: `SIG-ECDSA-ED25519-9482bf10842e4719ac0b4e`,
-      timestamp: new Date().toISOString(),
+      arbiterSignature,
+      timestamp,
       verificationAuditTrail: [
-        `Milestone [${milestone.title}] verified against acceptance criteria.`,
-        `SHA-256 cryptographic digest verified by client-side WebCrypto engine.`,
-        `Zero-knowledge authorization token signed by WebMCP Arbiter.`,
-        `Escrow vault funds released ($${milestone.payoutAmountUsd} USD) to contractor address.`
+        `Milestone [${milestone.title}] verified against acceptance criteria before release.`,
+        `Deliverable SHA-256 fingerprint matched the contractual milestone specification.`,
+        `Release authorization signed with the contract's HMAC-SHA-256 arbiter key.`,
+        `Escrow vault funds released ($${milestone.payoutAmountUsd} USD) to contractor address ${contract.contractorPublicKey}.`
       ]
     };
-  },
-
-  DEMO_CONTRACT: {
-    contractId: 'CTR-98AF-2026',
-    clientPublicKey: 'PUB_CLI_7a4f91d0e',
-    contractorPublicKey: 'PUB_CTR_38bc991a0',
-    totalEscrowAmountUsd: 3500,
-    milestones: [
-      { id: 'M-1', title: 'Milestone 1: Zero-Day Hotpatch AST Module', payoutAmountUsd: 1500, expectedFileSha256: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852a4f0', acceptanceCriteria: ['Must parse AST', 'Must eliminate eval'], status: 'PENDING' },
-      { id: 'M-2', title: 'Milestone 2: 3D Protein CAD Viewer & Mutagenesis', payoutAmountUsd: 2000, expectedFileSha256: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b891', acceptanceCriteria: ['Must render PDB atoms', 'Must compute clashes'], status: 'PENDING' }
-    ],
-    contractState: 'FUNDED'
   }
 };
+
+ZkEscrow.DEMO_CONTRACT = ZkEscrow.createEscrowContract(
+  'Alice Cryptography Labs',
+  'Bob Decentralized Corp',
+  [
+    {
+      title: 'Milestone 1: Zero-Day Hotpatch AST Module',
+      payoutAmountUsd: 1500,
+      expectedContent: 'function patchVulnerability(ast) { return sanitize(ast); }',
+      acceptanceCriteria: ['Must parse AST', 'Must eliminate eval']
+    },
+    {
+      title: 'Milestone 2: 3D Protein CAD Viewer & Mutagenesis',
+      payoutAmountUsd: 2000,
+      expectedContent: 'function render3dProtein(pdb) { return WebGL.draw(pdb); }',
+      acceptanceCriteria: ['Must render PDB atoms', 'Must compute clashes']
+    }
+  ]
+);
 
 // ==========================================
 // MASTER WEBMCP CATALOG (20 Tools)
@@ -1012,17 +1199,23 @@ export const WEBMCP_TOOLS_CATALOG = [
     module: 'ZkEscrow',
     description: 'Compute client-side SHA-256 deliverable fingerprint and verify compliance against cryptographic milestone spec.',
     inputSchema: { type: 'object', properties: { milestoneId: { type: 'string' }, submittedContent: { type: 'string' } }, required: ['milestoneId', 'submittedContent'] },
-    execute: (input) => ZkEscrow.verifyMilestoneDeliverable(
-      ZkEscrow.DEMO_CONTRACT,
-      input.milestoneId,
-      input.submittedContent,
-      [{ description: 'Syntax and security validation', pass: true }]
-    )
+    execute: (input) => {
+      const content = String(input.submittedContent ?? '');
+      return ZkEscrow.verifyMilestoneDeliverable(
+        ZkEscrow.DEMO_CONTRACT,
+        input.milestoneId,
+        content,
+        [
+          { description: 'No dynamic eval() statements', pass: !content.includes('eval(') },
+          { description: 'Deliverable is non-empty', pass: content.trim().length > 0 }
+        ]
+      );
+    }
   },
   {
     name: 'zkescrow_sign_escrow_release',
     module: 'ZkEscrow',
-    description: 'Generate zero-knowledge arbiter release proof with ECDSA/HMAC signature authorizing fund disbursement.',
+    description: 'Generate an HMAC-SHA-256 arbiter release proof authorizing fund disbursement for a verified milestone.',
     inputSchema: { type: 'object', properties: { milestoneId: { type: 'string' } }, required: ['milestoneId'] },
     execute: (input) => ZkEscrow.signEscrowRelease(ZkEscrow.DEMO_CONTRACT, input.milestoneId)
   }

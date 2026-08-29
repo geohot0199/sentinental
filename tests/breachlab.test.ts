@@ -59,6 +59,20 @@ describe('Sentinel BreachLab Engine (Module 1)', () => {
     expect(detonation.interceptedEvents.length).toBeGreaterThan(0);
   });
 
+  it('enforces the configured sandbox timeout and stops scanning early', () => {
+    const hugeCode = Array.from({ length: 50_000 }, (_, i) => `console.log(${i});`).join('\n');
+    const detonation = detonateSandbox(hugeCode, { timeoutMs: 1 });
+    expect(detonation.timedOut).toBe(true);
+    expect(detonation.success).toBe(false);
+    expect(detonation.safeToRun).toBe(false);
+  });
+
+  it('completes normally when no timeout is configured', () => {
+    const detonation = detonateSandbox('console.log("ok");');
+    expect(detonation.timedOut).toBe(false);
+    expect(detonation.success).toBe(true);
+  });
+
   it('traces tainted user input propagation to vulnerable sinks', () => {
     const code = `
       const payload = req.query.cmd;

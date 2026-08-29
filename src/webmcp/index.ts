@@ -297,21 +297,30 @@ export const WEBMCP_TOOLS_CATALOG: WebMCPToolDefinition[] = [
       },
       required: ['milestoneId', 'submittedContent']
     },
-    execute: (input) => ZkEscrow.verifyMilestoneDeliverable(
-      ZkEscrow.DEMO_CONTRACT,
-      input.milestoneId,
-      input.submittedContent,
-      [{ description: 'Cryptographic syntax verification', pass: true }]
-    )
+    execute: (input) => {
+      const content = String(input.submittedContent ?? '');
+      // Assertions are derived from the deliverable itself, never hard-coded
+      // to pass, so the verification verdict reflects the content actually
+      // submitted rather than a canned "true".
+      return ZkEscrow.verifyMilestoneDeliverable(
+        ZkEscrow.DEMO_CONTRACT,
+        input.milestoneId,
+        content,
+        [
+          { description: 'No dynamic eval() statements', pass: !content.includes('eval(') },
+          { description: 'Deliverable is non-empty', pass: content.trim().length > 0 }
+        ]
+      );
+    }
   },
   {
     name: 'zkescrow_sign_escrow_release',
     module: 'ZkEscrow',
-    description: 'Generate zero-knowledge arbiter release proof with ECDSA/HMAC signature authorizing fund disbursement.',
+    description: 'Generate an HMAC-SHA-256 arbiter release proof authorizing fund disbursement for a verified milestone.',
     inputSchema: {
       type: 'object',
       properties: {
-        milestoneId: { type: 'string', description: 'Milestone ID to release' }
+        milestoneId: { type: 'string', description: 'Milestone ID to release (must already be VERIFIED)' }
       },
       required: ['milestoneId']
     },

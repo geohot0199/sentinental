@@ -5,6 +5,8 @@
  * 3D Time-Difference-Of-Arrival (TDOA) acoustic source triangulation, and forensic timeline generation.
  */
 
+import { createHash } from 'node:crypto';
+
 export interface MediaFeed {
   id: string;
   sourceName: string;
@@ -129,7 +131,7 @@ export function triangulateAcousticOrigin(
   const learningRate = 0.05;
 
   for (let it = 0; it < iterations; it++) {
-    let gradX = 0, gradY = 0;
+    let gradX = 0, gradY = 0, gradZ = 0;
 
     for (let i = 1; i < feeds.length; i++) {
       const fi = feeds[i];
@@ -153,12 +155,20 @@ export function triangulateAcousticOrigin(
       const d_0_dy = (Math.sqrt((estX - p0.x) ** 2 + (estY + eps - p0.y) ** 2 + (estZ - p0.z) ** 2) - d_0) / eps;
       const dError_dy = (d_i_dy - d_0_dy) / SPEED_OF_SOUND;
 
+      // Z gradient: the third spatial dimension participates in the fit too,
+      // otherwise the reported source height never moves from the centroid.
+      const d_i_dz = (Math.sqrt((estX - pi.x) ** 2 + (estY - pi.y) ** 2 + (estZ + eps - pi.z) ** 2) - d_i) / eps;
+      const d_0_dz = (Math.sqrt((estX - p0.x) ** 2 + (estY - p0.y) ** 2 + (estZ + eps - p0.z) ** 2) - d_0) / eps;
+      const dError_dz = (d_i_dz - d_0_dz) / SPEED_OF_SOUND;
+
       gradX += 2 * error * dError_dx;
       gradY += 2 * error * dError_dy;
+      gradZ += 2 * error * dError_dz;
     }
 
     estX -= learningRate * gradX;
     estY -= learningRate * gradY;
+    estZ -= learningRate * gradZ;
   }
 
   // Calculate residual error
@@ -235,17 +245,23 @@ export function buildForensicDossier(
     { timestampMs: 380, eventLabel: 'Secondary Acoustic Reverberation & Echo Pattern', detectedByFeeds: feeds.map(f => f.id), confidence: 0.89 }
   ];
 
-  const forensicString = `${incidentId}:${feeds.length}:${origin.x}:${origin.y}:${origin.z}`;
-  let hashVal = 0;
-  for (let i = 0; i < forensicString.length; i++) {
-    hashVal = ((hashVal << 5) - hashVal) + forensicString.charCodeAt(i);
-    hashVal |= 0;
-  }
-  const forensicHash = `SHA256-SYNTH-${Math.abs(hashVal).toString(16).padStart(12, '0')}`;
+  const reconstructedUtcTimestamp = new Date().toISOString();
+
+  // Canonical serialization of every integrity-relevant field, then a real
+  // SHA-256 digest. A dossier whose feeds, origin, or timeline change produces
+  // a different hash, which is the whole point of an evidence chain.
+  const canonicalPayload = JSON.stringify({
+    incidentId,
+    reconstructedUtcTimestamp,
+    synchronizedFeeds: syncs,
+    originLocation: origin,
+    timelineSequence
+  });
+  const forensicHash = createHash('sha256').update(canonicalPayload).digest('hex');
 
   return {
     incidentId,
-    reconstructedUtcTimestamp: new Date().toISOString(),
+    reconstructedUtcTimestamp,
     synchronizedFeeds: syncs,
     originLocation: origin,
     timelineSequence,

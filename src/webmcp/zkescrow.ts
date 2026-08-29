@@ -2,7 +2,7 @@
  * ZK Peer-to-Peer Escrow & Dispute Arbiter - Zero-Backend WebCrypto Engine
  *
  * Implements client-side cryptographic milestone verification, SHA-256 deliverable fingerprinting,
- * in-browser acceptance test validation, and zero-knowledge escrow release signatures.
+ * in-browser acceptance test validation, and HMAC-SHA-256 escrow release signatures.
  */
 
 import { createHash, createHmac, randomBytes } from 'node:crypto';
@@ -21,6 +21,12 @@ export interface EscrowContract {
   clientPublicKey: string;
   contractorPublicKey: string;
   arbiterAgentId: string;
+  /**
+   * Per-contract, randomly generated HMAC key used to authorise release proofs.
+   * It is generated inside this module (never hard-coded) so two contracts can
+   * never be forged with the same key, and a caller may always supply its own.
+   */
+  arbiterSecretKey: string;
   totalEscrowAmountUsd: number;
   milestones: MilestoneSpec[];
   createdAt: string;
@@ -66,11 +72,15 @@ export function createEscrowContract(
   const contractId = `CTR-${Date.now().toString(36).toUpperCase()}-${randomBytes(3).toString('hex').toUpperCase()}`;
   const clientPublicKey = `PUB_CLI_${randomBytes(8).toString('hex')}`;
   const contractorPublicKey = `PUB_CTR_${randomBytes(8).toString('hex')}`;
+  // Never a hard-coded default: each contract gets its own random HMAC key.
+  const arbiterSecretKey = randomBytes(32).toString('hex');
 
   const structuredMilestones: MilestoneSpec[] = milestones.map((m, idx) => ({
     id: `M-${idx + 1}`,
     title: m.title,
     payoutAmountUsd: m.payoutAmountUsd,
+    // Default (spec-only) milestones hash the placeholder spec, so verification
+    // compares digests strictly and the contract stays self-consistent.
     expectedFileSha256: m.expectedContent ? calculateSha256(m.expectedContent) : calculateSha256(`INITIAL_SPEC_${m.title}`),
     acceptanceCriteria: m.acceptanceCriteria,
     status: 'PENDING'
@@ -83,6 +93,7 @@ export function createEscrowContract(
     clientPublicKey,
     contractorPublicKey,
     arbiterAgentId: 'WebMCP-Sentinel-Arbiter-v1',
+    arbiterSecretKey,
     totalEscrowAmountUsd: total,
     milestones: structuredMilestones,
     createdAt: new Date().toISOString(),
@@ -105,7 +116,10 @@ export function verifyMilestoneDeliverable(
   }
 
   const actualSha256 = calculateSha256(submittedContent);
-  const hashMatch = actualSha256 === milestone.expectedFileSha256 || milestone.expectedFileSha256.startsWith('INITIAL_SPEC_') || submittedContent.length > 20;
+  // Strict comparison only. A deliverable matches when its digest equals the
+  // contractual digest - length, prefix markers, or any other shortcut are all
+  // rejections, otherwise arbitrary deliverables could be marked as verified.
+  const hashMatch = actualSha256 === milestone.expectedFileSha256;
 
   const failedCriteria: string[] = [];
   if (testAssertions) {
@@ -147,23 +161,42 @@ export function verifyMilestoneDeliverable(
 
 /**
  * Signs and generates the cryptographic release intent proof.
+ *
+ * Release is refused unless the milestone has already been verified: the only
+ * path to `VERIFIED` is a successful `verifyMilestoneDeliverable`, so escrow
+ * funds can never be released for a pending or disputed milestone.
  */
 export function signEscrowRelease(
   contract: EscrowContract,
   milestoneId: string,
-  arbiterSecretKey: string = 'SENTINEL_ARBITER_ZERO_KNOWLEDGE_SECRET'
+  arbiterSecretKey?: string
 ): EscrowReleaseProof {
   const milestone = contract.milestones.find(m => m.id === milestoneId);
   if (!milestone) {
     throw new Error(`Milestone ${milestoneId} not found.`);
   }
 
+  if (milestone.status !== 'VERIFIED') {
+    throw new Error(
+      `Milestone ${milestoneId} is ${milestone.status}, not VERIFIED. ` +
+      'Escrow release requires a successful deliverable verification first.'
+    );
+  }
+
+  if (contract.contractState === 'DRAFT') {
+    throw new Error('Escrow contract is still in DRAFT state and cannot release funds.');
+  }
+
+  const secret = arbiterSecretKey ?? contract.arbiterSecretKey;
   const timestamp = new Date().toISOString();
   const signaturePayload = `${contract.contractId}:${milestoneId}:${milestone.payoutAmountUsd}:${timestamp}`;
 
-  const hmac = createHmac('sha256', arbiterSecretKey);
+  const hmac = createHmac('sha256', secret);
   hmac.update(signaturePayload);
-  const arbiterSignature = `SIG-ECDSA-ED25519-${hmac.digest('hex')}`;
+  // Honest label: this is an HMAC-SHA-256 authorisation token, not an ECDSA /
+  // Ed25519 signature. There is no asymmetric public-key pair in a client-side
+  // demo, so the proof is a keyed digest over the release intent.
+  const arbiterSignature = `SIG-HMAC-SHA256-${hmac.digest('hex')}`;
 
   milestone.status = 'RELEASED';
   if (contract.milestones.every(m => m.status === 'RELEASED')) {
@@ -177,9 +210,9 @@ export function signEscrowRelease(
     arbiterSignature,
     timestamp,
     verificationAuditTrail: [
-      `Milestone [${milestone.title}] verified against acceptance criteria.`,
-      `SHA-256 cryptographic digest verified by client-side WebCrypto engine.`,
-      `Zero-knowledge authorization token signed by WebMCP Arbiter.`,
+      `Milestone [${milestone.title}] verified against acceptance criteria before release.`,
+      `Deliverable SHA-256 fingerprint matched the contractual milestone specification.`,
+      `Release authorization signed with the contract's HMAC-SHA-256 arbiter key.`,
       `Escrow vault funds released ($${milestone.payoutAmountUsd} USD) to contractor address ${contract.contractorPublicKey}.`
     ]
   };

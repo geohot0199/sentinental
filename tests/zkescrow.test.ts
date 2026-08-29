@@ -40,10 +40,50 @@ describe('ZK Peer-to-Peer Escrow Engine (Module 5)', () => {
   });
 
   it('signs cryptographic escrow release proof and updates milestone status', () => {
+    // Release requires a VERIFIED milestone, so verify the deliverable first.
+    const deliverableCode = 'function patchVulnerability(ast) { return sanitize(ast); }';
+    verifyMilestoneDeliverable(DEMO_CONTRACT, 'M-1', deliverableCode, [
+      { description: 'Must parse AST', pass: true },
+      { description: 'Must eliminate eval', pass: true }
+    ]);
+
     const proof = signEscrowRelease(DEMO_CONTRACT, 'M-1');
     expect(proof.releasedAmountUsd).toBe(1500);
-    expect(proof.arbiterSignature).toMatch(/^SIG-ECDSA-ED25519-/);
+    expect(proof.arbiterSignature).toMatch(/^SIG-HMAC-SHA256-/);
     expect(proof.verificationAuditTrail.length).toBeGreaterThan(0);
     expect(DEMO_CONTRACT.milestones[0]?.status).toBe('RELEASED');
+  });
+
+  it('rejects a deliverable whose digest does not match the milestone spec', () => {
+    const contract = createEscrowContract('Dev A', 'Client B', [
+      { title: 'Task 1', payoutAmountUsd: 500, expectedContent: 'the real deliverable', acceptanceCriteria: ['Must work'] }
+    ]);
+    // Long arbitrary content must NOT pass: the previous implementation treated
+    // any input over 20 characters as a match.
+    const result = verifyMilestoneDeliverable(contract, 'M-1', 'a'.repeat(10_000), [
+      { description: 'Must work', pass: true }
+    ]);
+    expect(result.hashMatch).toBe(false);
+    expect(result.arbitrationVerdict).toBe('REJECTED_MISMATCH');
+    expect(contract.milestones[0]?.status).toBe('DISPUTED');
+  });
+
+  it('refuses to release a milestone that has not been verified', () => {
+    const contract = createEscrowContract('Dev A', 'Client B', [
+      { title: 'Task 1', payoutAmountUsd: 500, acceptanceCriteria: ['Must work'] }
+    ]);
+    expect(() => signEscrowRelease(contract, 'M-1')).toThrow(/not VERIFIED/);
+    expect(contract.milestones[0]?.status).toBe('PENDING');
+  });
+
+  it('issues a per-contract release key rather than a shared hard-coded secret', () => {
+    const a = createEscrowContract('Dev A', 'Client B', [
+      { title: 'Task 1', payoutAmountUsd: 500, acceptanceCriteria: ['Must work'] }
+    ]);
+    const b = createEscrowContract('Dev A', 'Client B', [
+      { title: 'Task 1', payoutAmountUsd: 500, acceptanceCriteria: ['Must work'] }
+    ]);
+    expect(a.arbiterSecretKey).not.toBe(b.arbiterSecretKey);
+    expect(a.arbiterSecretKey).not.toBe('SENTINEL_ARBITER_ZERO_KNOWLEDGE_SECRET');
   });
 });
