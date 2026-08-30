@@ -31,11 +31,12 @@
 9. [Why the harness does the work](#why-the-harness-does-the-work)
 10. [Degradation strategy](#degradation-strategy)
 11. [Local development & testing](#local-development--testing)
-12. [A bug this caught](#a-bug-this-caught)
-13. [Project layout](#project-layout)
-14. [Included: the WebMCP OMNI-LAB demo](#included-the-webmcp-omni-lab-demo)
-15. [FAQ](#faq)
-16. [License](#license)
+12. [Contributing](#contributing)
+13. [A bug this caught](#a-bug-this-caught)
+14. [Project layout](#project-layout)
+15. [Included: the WebMCP OMNI-LAB demo](#included-the-webmcp-omni-lab-demo)
+16. [FAQ](#faq)
+17. [License](#license)
 
 ---
 
@@ -305,11 +306,11 @@ Seven domain tools over remote streamable HTTP, bearer-authenticated. Their safe
 | `open_pull_request` | `destructiveHint` | **yes** |
 | `merge_pull_request` | `destructiveHint` | **yes** |
 
-The classification is a tiny, explicit helper in `src/mcp/tools.ts`:
+Each tool lives in its own module under `src/mcp/tools/`; `src/mcp/tools.ts` is a barrel that exports the registry, the destructive list and the one function allowed to invoke a handler. The classification is a tiny, explicit helper they all share:
 
 ```ts
-// src/mcp/tools.ts (excerpt)
-const readOnly = (title: string): ToolAnnotations => ({
+// src/mcp/tools/shared.ts (excerpt)
+export const readOnly = (title: string): ToolAnnotations => ({
   title,
   readOnlyHint: true,
   destructiveHint: false,
@@ -317,7 +318,7 @@ const readOnly = (title: string): ToolAnnotations => ({
   openWorldHint: true,
 });
 
-const destructive = (title: string): ToolAnnotations => ({
+export const destructive = (title: string): ToolAnnotations => ({
   title,
   readOnlyHint: false,
   destructiveHint: true,
@@ -329,7 +330,7 @@ const destructive = (title: string): ToolAnnotations => ({
 And a destructive tool re-checks the kill switch *itself*, before any network call — the approval gate is the second line of defence, not the only one:
 
 ```ts
-// src/mcp/tools.ts (excerpt)
+// src/mcp/tools/open-pull-request.ts (excerpt)
 async handler(args, ctx) {
   if (!ctx.github.configured) throw notConfigured("GitHub access", "GITHUB_TOKEN");
   // Check the kill switch before ANY network call. The client re-checks it too,
@@ -459,7 +460,7 @@ The harness is configured from env, and each capability degrades independently r
 
 ```bash
 npm install              # install dependencies
-npm test                 # run all unit and integration tests (142 passing)
+npm test                 # run all unit and integration tests (211 passing)
 npm run test:watch       # watch mode
 npm run typecheck        # strict TypeScript, noEmit
 npm run scan:secrets     # fail on anything credential-shaped
@@ -472,12 +473,15 @@ Verified against the real harness, not a reimplementation. The end-to-end approv
 
 ```
 $ npm test
-Test Files  13 passed (13)
-     Tests  142 passed (142)
+Test Files  18 passed (18)
+     Tests  211 passed (211)
 
 $ npm run scan:secrets
-✓ Scanned 60 tracked file(s). No secrets found.
+✓ Scanned 90 tracked file(s). No secrets found.
 ```
+
+Before pushing, `node --experimental-strip-types scripts/scan-secrets.ts --staged`
+scans only what is staged — the same check CI runs, without waiting for it.
 
 The end-to-end approval gate can also be run directly:
 
@@ -491,7 +495,45 @@ $ node --experimental-strip-types scripts/e2e-approval.ts
   ALL CHECKS PASSED
 ```
 
-CI (see `ci/github-actions-ci.yml`) runs, in order: **secret scan → typecheck → unit tests → dependency audit**.
+CI (see [`ci/github-actions-ci.yml`](ci/github-actions-ci.yml)) runs, in order: **secret scan → typecheck → lint → unit tests → dependency audit**. Every step is the same command you run locally, so a green local run is a green CI run.
+
+That pipeline does not run on GitHub yet: it has to be copied to `.github/workflows/ci.yml` by someone holding the `workflows` permission, which this project's automation does not have. `ci/README.md` has the three commands, and the gap is logged as open debt in `CHANGELOG.md`.
+
+---
+
+## Contributing
+
+The bar is deliberately mechanical, so it can be checked rather than argued
+about.
+
+**A change and its test land in the same commit.** Every commit that alters
+behaviour names the `tests/*.test.ts` file that pins it, in the message. A
+commit that cannot name one is a commit that changed something nobody can
+prove still works.
+
+**Keep a PR under roughly 200 changed lines.** One module or one bugfix. If a
+diff needs a map, it is two PRs.
+
+**Run the gate before pushing**, in the order CI runs it:
+
+```bash
+npm run scan:secrets     # or: ... scripts/scan-secrets.ts --staged
+npm run typecheck
+npm run lint -- --max-warnings=0
+npm test
+```
+
+`eslint.config.js` enforces `max-lines` 500, `max-lines-per-function` 120,
+`max-depth` 4 and `complexity` 20. When a module outgrows those numbers the
+answer is to split it, not to raise the limit — the safety annotations in
+`src/mcp/tools/` sit next to the code they guard, and that only works while
+the file is readable end to end. If you must take an exception, put the
+`eslint-disable` at the line with a reason, and record it in the
+**Known debt** table in [`CHANGELOG.md`](CHANGELOG.md) so the next person can
+see what is owed.
+
+**Update `CHANGELOG.md` with the change.** Not the git log — the reasoning and
+the trade-off, which is what a reviewer six months from now actually needs.
 
 ---
 
@@ -527,14 +569,16 @@ src/
   cli/           Terminal client (drives the same runner as the web app)
   web/           Hono web console + SSE event stream
   harness/       provision.ts · runner.ts · agent-spec.ts (the thin layer)
-  mcp/           The MCP tool server + the 7 tool definitions
+  mcp/           The MCP tool server (server.ts) + the 7 tools, one per file in tools/
   core/          GitHub client, advisory lookup, manifest, semver, redaction, config
   webmcp/        The WebMCP OMNI-LAB modules (browser demo, see below)
 site/            Static SENTINEL landing page (GitHub Pages source)
-tests/           13 suites, 142 tests
+tests/           18 suites, 211 tests
 scripts/         mock-model · e2e-approval · probe-mcp · scan-secrets
-ci/              GitHub Actions workflows (CI + Pages deploy)
+ci/              GitHub Actions workflows (verify + Pages), pending the copy
+                 into .github/workflows/ — see ci/README.md
 docs/            ARCHITECTURE.md
+CHANGELOG.md     What changed, newest first, each entry naming its test
 ```
 
 ---
