@@ -91,9 +91,10 @@ Dead code the lint gate found, each of it a small lie the source was telling:
 
 ### Known debt
 
-Four pre-existing shape violations carry an inline `eslint-disable` naming the
-reason, so the gate stays strict for new code and the exceptions are visible
-at the line rather than waived globally in the config:
+Five pre-existing shape violations, across eight sites, carry an inline
+`eslint-disable` naming the reason, so the gate stays strict for new code and
+the exceptions are visible at the line rather than waived globally in the
+config:
 
 | Where | Rule | Why it is still there |
 | --- | --- | --- |
