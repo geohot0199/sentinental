@@ -44,7 +44,8 @@ export function isValidBranchName(name: string): boolean {
   if (name.length === 0 || name.length > 255) return false;
   if (name.startsWith("/") || name.endsWith("/") || name.endsWith(".lock")) return false;
   if (name.includes("..") || name.includes("//") || name.includes("@{")) return false;
-  // eslint-disable-next-line no-control-regex
+  // Control characters and ref-invalid punctuation. `no-control-regex` does not
+  // fire on a character class, so no disable directive is needed here.
   if (/[\0-\x20~^:?*[\\\x7f]/.test(name)) return false;
   return true;
 }

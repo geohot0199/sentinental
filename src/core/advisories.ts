@@ -80,7 +80,7 @@ function pickCvss(advisory: GhAdvisory): number | null {
   return null;
 }
 
-async function queryGitHub(
+function queryGitHub(
   packageName: string,
   ecosystem: string,
   token: string | null,
@@ -154,6 +154,7 @@ interface OsvVuln {
   database_specific?: { severity?: string };
 }
 
+// eslint-disable-next-line complexity -- one linear walk of OSV's introduced/fixed event stream
 function fromOsv(vuln: OsvVuln, packageName: string, installedVersion: string): AdvisoryMatch | null {
   const affectedEntries = (vuln.affected ?? []).filter(
     (a) => a.package?.name?.toLowerCase() === packageName.toLowerCase(),

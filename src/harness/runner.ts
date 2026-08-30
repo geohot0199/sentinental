@@ -154,7 +154,6 @@ function textOf(content: TrueForgeApi.ModelMessageEventContent | null | undefine
 
 export class SentinelRunner {
   readonly #client: TrueForge;
-  readonly #config: SentinelConfig;
   readonly #registry = new ToolCallRegistry();
   readonly #deltas = new DeltaAccumulator();
 
@@ -169,7 +168,6 @@ export class SentinelRunner {
    *        agent instead of shipping a second, untested implementation.
    */
   constructor(config: SentinelConfig, agentName: string = AGENT_NAME) {
-    this.#config = config;
     this.#agentName = agentName;
     this.#client = new TrueForge({ baseUrl: config.harnessUrl });
   }
@@ -290,6 +288,7 @@ export class SentinelRunner {
    * Kept pure and synchronous so it can be reused for both live streaming and
    * history replay - the reconnect path and the live path cannot drift.
    */
+  // eslint-disable-next-line complexity, max-lines-per-function -- one case per harness event type
   #translate(event: TrueForgeApi.TurnStreamingEvent): SentinelEvent[] {
     const out: SentinelEvent[] = [];
 

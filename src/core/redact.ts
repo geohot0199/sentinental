@@ -57,10 +57,6 @@ const PATTERNS: readonly { readonly name: string; readonly re: RegExp }[] = [
 
 const MASK = "[REDACTED]";
 
-function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
 /** Redact a single string. Safe to call on any user- or model-supplied text. */
 export function redact(input: string): string {
   if (input.length === 0) return input;

@@ -98,6 +98,7 @@ export interface AppDeps {
   readonly scanner: Scanner;
 }
 
+// eslint-disable-next-line max-lines-per-function -- flat route table; splitting it moves it out of review
 export function buildApp(deps: AppDeps): Hono {
   const { config, db, scanner } = deps;
   const app = new Hono();
@@ -357,7 +358,7 @@ export function buildApp(deps: AppDeps): Hono {
   return app;
 }
 
-async function main(): Promise<void> {
+function main(): void {
   const config = loadConfig();
   registerSecrets([
     config.githubToken,
@@ -403,8 +404,10 @@ function isEntrypoint(): boolean {
 }
 
 if (isEntrypoint()) {
-  main().catch((cause: unknown) => {
+  try {
+    main();
+  } catch (cause) {
     process.stderr.write(`fatal: ${toSentinelError(cause).message}\n`);
     process.exit(1);
-  });
+  }
 }

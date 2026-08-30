@@ -1,5 +1,19 @@
 import { describe, it, expect } from 'vitest';
-import { WEBMCP_TOOLS_CATALOG, registerAllWebMCPTools } from '../src/webmcp/index.ts';
+import {
+  WEBMCP_TOOLS_CATALOG,
+  registerAllWebMCPTools,
+  type WebMCPToolDefinition,
+} from '../src/webmcp/index.ts';
+
+/** Tool output is engine-specific JSON; the catalog types it as `unknown`. */
+async function runTool(
+  name: string,
+  input: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  const tool = WEBMCP_TOOLS_CATALOG.find((t) => t.name === name);
+  expect(tool, `missing tool ${name}`).toBeDefined();
+  return (await (tool as WebMCPToolDefinition).execute(input)) as Record<string, unknown>;
+}
 
 describe('WebMCP Master Catalog & Registration (W3C Spec Compliance)', () => {
   it('contains all tools across all 5 innovation modules', () => {
@@ -23,11 +37,11 @@ describe('WebMCP Master Catalog & Registration (W3C Spec Compliance)', () => {
   });
 
   it('registers tools with document.modelContext when available according to WebMCP standard', () => {
-    const registeredTools: any[] = [];
+    const registeredTools: WebMCPToolDefinition[] = [];
     const mockDocument = {
       modelContext: {
-        registerTool: (toolDef: any) => {
-          registeredTools.push(toolDef);
+        registerTool: (toolDef: unknown) => {
+          registeredTools.push(toolDef as WebMCPToolDefinition);
         }
       }
     };
@@ -40,29 +54,30 @@ describe('WebMCP Master Catalog & Registration (W3C Spec Compliance)', () => {
   });
 
   it('executes breachlab, biosynth, chrono, metaloop, and zkescrow tools successfully via catalog', async () => {
-    // 1. BreachLab
-    const breachTool = WEBMCP_TOOLS_CATALOG.find(t => t.name === 'breachlab_analyze_cve_ast');
-    const breachRes = await breachTool?.execute({ codeOrManifest: 'const x = eval(req.query.cmd);' });
+    const breachRes = await runTool('breachlab_analyze_cve_ast', {
+      codeOrManifest: 'const x = eval(req.query.cmd);',
+    });
     expect(breachRes.verdict).toBeDefined();
 
-    // 2. BioSynth
-    const bioTool = WEBMCP_TOOLS_CATALOG.find(t => t.name === 'biosynth_mutate_residue');
-    const bioRes = await bioTool?.execute({ chain: 'A', resSeq: 2, targetResidue3: 'TRP' });
+    const bioRes = await runTool('biosynth_mutate_residue', {
+      chain: 'A',
+      resSeq: 2,
+      targetResidue3: 'TRP',
+    });
     expect(bioRes.mutatedResidue).toBe('TRP');
 
-    // 3. ChronoForensic
-    const chronoTool = WEBMCP_TOOLS_CATALOG.find(t => t.name === 'chrono_generate_forensic_dossier');
-    const chronoRes = await chronoTool?.execute({ incidentId: 'TEST-CASE-1' });
+    const chronoRes = await runTool('chrono_generate_forensic_dossier', {
+      incidentId: 'TEST-CASE-1',
+    });
     expect(chronoRes.forensicHash).toBeDefined();
 
-    // 4. MetaLoop
-    const metaTool = WEBMCP_TOOLS_CATALOG.find(t => t.name === 'metaloop_inspect_trace_tree');
-    const metaRes = await metaTool?.execute({});
+    const metaRes = await runTool('metaloop_inspect_trace_tree', {});
     expect(metaRes.healthScore).toBeDefined();
 
-    // 5. ZkEscrow
-    const zkTool = WEBMCP_TOOLS_CATALOG.find(t => t.name === 'zkescrow_verify_deliverable_hash');
-    const zkRes = await zkTool?.execute({ milestoneId: 'M-1', submittedContent: 'function patch() {}' });
+    const zkRes = await runTool('zkescrow_verify_deliverable_hash', {
+      milestoneId: 'M-1',
+      submittedContent: 'function patch() {}',
+    });
     expect(zkRes.actualSha256).toBeDefined();
   });
 });

@@ -5,8 +5,11 @@
 1. **Secret scan** — first, so a leaked credential fails the build before any
    later step could echo it into a log.
 2. **Typecheck**
-3. **Unit tests**
-4. **Dependency audit** at `--audit-level=high`
+3. **Lint** at `--max-warnings=0` — `@typescript-eslint` recommended plus the
+   shape gates in `eslint.config.js`, `max-lines` 500 among them. Warnings fail
+   too, so an unused disable directive cannot accumulate.
+4. **Unit tests**
+5. **Dependency audit** at `--audit-level=high`
 
 ## Activating it
 
@@ -26,8 +29,15 @@ Every check it runs is also runnable locally:
 ```bash
 npm run scan:secrets
 npm run typecheck
+npm run lint -- --max-warnings=0
 npm test
 npm audit --audit-level=high
+```
+
+To scan only what is staged, rather than every tracked file:
+
+```bash
+node --experimental-strip-types scripts/scan-secrets.ts --staged
 ```
 
 ## Landing page deployment

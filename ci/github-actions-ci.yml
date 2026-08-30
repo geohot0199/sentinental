@@ -27,6 +27,11 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
+      # Fails on any error: the config's max-lines / complexity gates are what
+      # keep src/ reviewable, so an exception needs a PR, not a quiet file.
+      - name: Lint
+        run: npm run lint -- --max-warnings=0
+
       - name: Unit tests
         run: npm test
 
