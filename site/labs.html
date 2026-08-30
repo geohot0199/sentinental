@@ -1,0 +1,532 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Omni-Lab — SENTINEL</title>
+    <meta
+      name="description"
+      content="Five in-browser laboratories exposing 17 WebMCP tools: BreachLab AST triage, BioSynth 3D protein CAD, ChronoForensic OSINT, MetaLoop swarm debugger and a ZK escrow arbiter."
+    />
+    <meta name="theme-color" content="#000000" />
+    <meta name="color-scheme" content="dark" />
+
+    <link rel="stylesheet" href="css/base.css" />
+    <link rel="stylesheet" href="css/components.css" />
+    <link rel="stylesheet" href="css/pages.css" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' fill='%23000'/><rect x='7' y='7' width='18' height='18' fill='none' stroke='%23fff' stroke-width='2'/><rect x='13' y='13' width='6' height='6' fill='%23fff'/></svg>"
+    />
+    <script type="module" src="js/ui.js"></script>
+    <script type="module" src="js/labs.js"></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+
+    <header class="site-header">
+      <div class="wrap header-inner">
+        <a class="brand" href="index.html">
+          <span class="brand-mark" aria-hidden="true"></span>
+          <span>
+            <span class="brand-text">SENTINEL</span>
+            <span class="brand-sub">omni-lab</span>
+          </span>
+        </a>
+
+        <button
+          class="nav-toggle"
+          id="navToggle"
+          type="button"
+          aria-expanded="false"
+          aria-controls="primaryNav"
+          aria-label="Toggle navigation"
+        >
+          <span></span><span></span><span></span>
+        </button>
+
+        <nav class="nav" id="primaryNav" aria-label="Primary">
+          <a href="index.html">Overview</a>
+          <a href="index.html#pipeline">Pipeline</a>
+          <a href="index.html#tools">Tools</a>
+          <a href="scan.html">Live Scan</a>
+          <a href="labs.html">Omni-Lab</a>
+          <a href="agent.html">Agent</a>
+          <a href="docs.html">Docs</a>
+          <span class="tag tag-ghost" id="registryBadge" title="WebMCP registration status">
+            <span class="dot dot-pulse" aria-hidden="true"></span>
+            <span id="registryText">registering…</span>
+          </span>
+        </nav>
+      </div>
+    </header>
+
+    <main id="main" class="lab-shell">
+      <!-- ================================================= rail -->
+      <nav class="lab-rail" data-tabs role="tablist" aria-label="Omni-Lab modules">
+        <p class="rail-label">Modules</p>
+        <button class="rail-btn" role="tab" data-tab="breachlab" aria-selected="true" aria-controls="breachlab">
+          01 BreachLab<small>Zero-day war room</small>
+        </button>
+        <button class="rail-btn" role="tab" data-tab="biosynth" aria-selected="false" aria-controls="biosynth">
+          02 BioSynth<small>3D protein CAD</small>
+        </button>
+        <button class="rail-btn" role="tab" data-tab="chrono" aria-selected="false" aria-controls="chrono">
+          03 ChronoForensic<small>OSINT reconstructor</small>
+        </button>
+        <button class="rail-btn" role="tab" data-tab="metaloop" aria-selected="false" aria-controls="metaloop">
+          04 MetaLoop<small>Swarm debugger</small>
+        </button>
+        <button class="rail-btn" role="tab" data-tab="zkescrow" aria-selected="false" aria-controls="zkescrow">
+          05 ZK Escrow<small>WebCrypto arbiter</small>
+        </button>
+      </nav>
+
+      <div class="lab-main">
+        <!-- ======================================== 1. BREACHLAB -->
+        <section class="lab-pane" id="breachlab" role="tabpanel" aria-label="Sentinel BreachLab">
+          <div class="lab-head">
+            <div>
+              <span class="kicker">Module 01 · 4 WebMCP tools</span>
+              <h2>Sentinel BreachLab</h2>
+              <p>
+                Deep static AST analysis for code and dependency manifests. Detonate a payload in
+                an isolated micro-sandbox, trace tainted data from source to sink, and synthesise a
+                hotpatch that neutralises the dangerous calls.
+              </p>
+            </div>
+            <span class="status" data-level="ok" id="breachVerdict">Awaiting analysis</span>
+          </div>
+
+          <div class="btn-row" style="margin-bottom: 20px">
+            <button class="btn btn-sm shine" id="loadRce" type="button">Load zero-day exploit</button>
+            <button class="btn btn-sm shine" id="loadManifest" type="button">Load poisoned manifest</button>
+            <button class="btn btn-sm btn-primary shine" id="runBreach" type="button">Run AST analysis</button>
+          </div>
+
+          <div class="lab-grid">
+            <div class="panel">
+              <div class="panel-head">
+                <h3>Target code / manifest</h3>
+                <span class="tag" id="entropyTag">entropy 0.00</span>
+              </div>
+              <div class="panel-body">
+                <label class="sr-only" for="breachInput">Code or manifest to analyse</label>
+                <textarea id="breachInput" rows="16" spellcheck="false" placeholder="// Paste JavaScript / TypeScript or package.json here…"></textarea>
+                <div class="btn-row" style="margin-top: 12px">
+                  <button class="btn btn-sm shine" id="btnDetonate" type="button">Detonate</button>
+                  <button class="btn btn-sm shine" id="btnTaint" type="button">Trace taint</button>
+                  <button class="btn btn-sm shine" id="btnHotpatch" type="button">Generate hotpatch</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="panel">
+              <div class="panel-head">
+                <h3>Attack graph &amp; blast radius</h3>
+                <span class="tag" id="graphNodeTag">0 nodes</span>
+              </div>
+              <div class="panel-body">
+                <canvas id="attackGraph" width="640" height="280"></canvas>
+                <div class="metrics" style="margin-top: 16px">
+                  <div class="metric">
+                    <div class="metric-k">Threat score</div>
+                    <div class="metric-v" id="mThreat">0<span style="font-size: 0.9rem">/100</span></div>
+                    <div class="meter"><i id="mThreatBar"></i></div>
+                  </div>
+                  <div class="metric">
+                    <div class="metric-k">Dangerous calls</div>
+                    <div class="metric-v" id="mCalls">0</div>
+                  </div>
+                  <div class="metric">
+                    <div class="metric-k">Findings</div>
+                    <div class="metric-v" id="mFindings">0</div>
+                  </div>
+                  <div class="metric">
+                    <div class="metric-k">Max blast radius</div>
+                    <div class="metric-v" id="mBlast">0%</div>
+                    <div class="meter"><i id="mBlastBar"></i></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="lab-grid" style="margin-top: 20px">
+            <div class="panel">
+              <div class="panel-head">
+                <h3>Findings</h3>
+                <span class="tag" id="findingsTag">idle</span>
+              </div>
+              <div class="panel-body">
+                <div class="list-rows" id="findingsList"></div>
+              </div>
+            </div>
+            <div class="panel">
+              <div class="panel-head">
+                <h3>Sandbox detonation log</h3>
+                <span class="tag" id="detonateTag">idle</span>
+              </div>
+              <div class="panel-body"><pre class="out" id="sandboxOut"></pre></div>
+            </div>
+          </div>
+
+          <div class="panel" style="margin-top: 20px">
+            <div class="panel-head">
+              <h3>Automated hotpatch diff</h3>
+              <span class="tag" id="patchGainTag">+0 security score</span>
+            </div>
+            <div class="panel-body"><pre class="out" id="hotpatchOut"></pre></div>
+          </div>
+        </section>
+
+        <!-- ========================================= 2. BIOSYNTH -->
+        <section class="lab-pane" id="biosynth" role="tabpanel" aria-label="BioSynth Studio" hidden>
+          <div class="lab-head">
+            <div>
+              <span class="kicker">Module 02 · 3 WebMCP tools</span>
+              <h2>BioSynth Studio</h2>
+              <p>
+                Load real Protein Data Bank atomic coordinates, rotate the alpha carbon backbone,
+                simulate an in-silico point mutation with ΔΔG stability prediction and steric clash
+                detection, then scan for druggable catalytic cavities.
+              </p>
+            </div>
+            <span class="status" data-level="ok" id="atomBadge">0 atoms</span>
+          </div>
+
+          <div class="btn-row" style="margin-bottom: 20px">
+            <button class="btn btn-sm shine" id="loadProtein" type="button">Load Crambin 1CRN</button>
+            <button class="btn btn-sm btn-primary shine" id="scanPockets" type="button">Scan binding pockets</button>
+          </div>
+
+          <div class="lab-grid">
+            <div class="panel">
+              <div class="panel-head">
+                <h3>3D atomic structure</h3>
+                <span class="tag">drag to rotate</span>
+              </div>
+              <div class="panel-body">
+                <canvas id="proteinCanvas" width="640" height="360"></canvas>
+                <p class="dim" style="font-size: 0.72rem; margin-top: 10px; font-family: var(--font-mono)">
+                  Element shading — outline: carbon · filled: nitrogen · crossed: oxygen · double: sulphur
+                </p>
+              </div>
+            </div>
+
+            <div class="panel">
+              <div class="panel-head">
+                <h3>Point mutagenesis workbench</h3>
+                <span class="status" data-level="ok" id="mutBadge">Ready</span>
+              </div>
+              <div class="panel-body">
+                <div class="field-row">
+                  <label class="field"><span>Chain</span>
+                    <input type="text" id="mutChain" value="A" maxlength="2" />
+                  </label>
+                  <label class="field"><span>Residue #</span>
+                    <input type="number" id="mutSeq" value="2" min="1" max="100" />
+                  </label>
+                  <label class="field"><span>Target residue</span>
+                    <select id="mutTarget">
+                      <option value="TRP">TRP — Tryptophan</option>
+                      <option value="ALA">ALA — Alanine</option>
+                      <option value="GLY">GLY — Glycine</option>
+                      <option value="LYS">LYS — Lysine</option>
+                      <option value="PHE">PHE — Phenylalanine</option>
+                      <option value="CYS">CYS — Cysteine</option>
+                    </select>
+                  </label>
+                </div>
+                <button class="btn btn-primary shine" id="btnMutate" type="button" style="width: 100%; justify-content: center">
+                  Simulate mutation
+                </button>
+
+                <div class="metrics" style="margin-top: 16px">
+                  <div class="metric">
+                    <div class="metric-k">ΔΔG stability</div>
+                    <div class="metric-v" id="mDdg">0.0</div>
+                    <div class="metric-note" id="mDdgNote">kcal/mol · neutral folding</div>
+                  </div>
+                  <div class="metric">
+                    <div class="metric-k">Steric clashes</div>
+                    <div class="metric-v" id="mClashes">0</div>
+                  </div>
+                </div>
+
+                <div style="margin-top: 14px">
+                  <div class="metric-k">Clash detail</div>
+                  <div class="list-rows" id="clashList" style="margin-top: 8px"></div>
+                </div>
+
+                <div class="box box-pad" style="margin-top: 14px">
+                  <div class="metric-k">Recommendation</div>
+                  <p id="bioRec" style="margin-top: 8px; font-size: 0.85rem">
+                    Run a simulation to receive a structural recommendation.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel" style="margin-top: 20px">
+            <div class="panel-head">
+              <h3>Druggable catalytic cavities</h3>
+              <span class="tag" id="pocketTag">0 pockets</span>
+            </div>
+            <div class="panel-body">
+              <div class="grid-3" id="pocketGrid"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ========================================== 3. CHRONO -->
+        <section class="lab-pane" id="chrono" role="tabpanel" aria-label="ChronoForensic OSINT" hidden>
+          <div class="lab-head">
+            <div>
+              <span class="kicker">Module 03 · 4 WebMCP tools</span>
+              <h2>ChronoForensic OSINT</h2>
+              <p>
+                Cross-correlate optical flash peaks across CCTV, bodycam and drone streams to
+                compute millisecond offsets, then solve the acoustic origin by Time-Difference-Of-
+                Arrival multilateration and seal the result in a SHA-256 evidence dossier.
+              </p>
+            </div>
+            <span class="status" data-level="ok" id="feedBadge">0 streams</span>
+          </div>
+
+          <div class="btn-row" style="margin-bottom: 20px">
+            <button class="btn btn-sm shine" id="loadFeeds" type="button">Load incident feeds</button>
+            <button class="btn btn-sm btn-primary shine" id="runTriangulate" type="button">Triangulate origin</button>
+            <button class="btn btn-sm shine" id="buildDossier" type="button">Seal forensic dossier</button>
+          </div>
+
+          <div class="lab-grid">
+            <div class="panel">
+              <div class="panel-head">
+                <h3>Multi-angle sensor streams</h3>
+                <span class="tag">flash-synchronised</span>
+              </div>
+              <div class="panel-body">
+                <div class="list-rows" id="feedList"></div>
+              </div>
+            </div>
+
+            <div class="panel">
+              <div class="panel-head">
+                <h3>Spatial triangulation map</h3>
+                <span class="tag">TDOA · 343 m/s</span>
+              </div>
+              <div class="panel-body">
+                <canvas id="chronoMap" width="640" height="300"></canvas>
+                <div class="metrics" style="margin-top: 16px">
+                  <div class="metric">
+                    <div class="metric-k">Estimated origin</div>
+                    <div class="metric-v" id="mOrigin" style="font-size: 1rem">(0.0, 0.0, 0.0)</div>
+                  </div>
+                  <div class="metric">
+                    <div class="metric-k">Confidence radius</div>
+                    <div class="metric-v" id="mRadius">±0.0m</div>
+                  </div>
+                  <div class="metric">
+                    <div class="metric-k">Sensors</div>
+                    <div class="metric-v" id="mSensors">0</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel" style="margin-top: 20px">
+            <div class="panel-head">
+              <h3>Unified forensic dossier</h3>
+              <span class="tag" id="dossierHash">SHA-256 pending</span>
+            </div>
+            <div class="panel-body">
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th scope="col">T+ (ms)</th>
+                      <th scope="col">Event</th>
+                      <th scope="col">Detected by</th>
+                      <th scope="col">Confidence</th>
+                    </tr>
+                  </thead>
+                  <tbody id="timelineBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ======================================== 4. METALOOP -->
+        <section class="lab-pane" id="metaloop" role="tabpanel" aria-label="MetaLoop Flight Simulator" hidden>
+          <div class="lab-head">
+            <div>
+              <span class="kicker">Module 04 · 3 WebMCP tools</span>
+              <h2>MetaLoop Flight Simulator</h2>
+              <p>
+                Inspect an agent swarm's execution trace tree for infinite tool loops, token
+                explosions and cognitive drift — then fork the branch, inject a synthetic tool
+                result, and watch the swarm recover.
+              </p>
+            </div>
+            <span class="status" data-level="alert" id="swarmBadge">Loop trapped · 45%</span>
+          </div>
+
+          <div class="btn-row" style="margin-bottom: 20px">
+            <button class="btn btn-sm shine" id="loadTrace" type="button">Reset trapped trace</button>
+            <button class="btn btn-sm btn-primary shine" id="btnInspect" type="button">Inspect trace tree</button>
+            <button class="btn btn-sm shine" id="btnMitigate" type="button">Synthesise mitigation</button>
+          </div>
+
+          <div class="lab-grid">
+            <div class="panel">
+              <div class="panel-head">
+                <h3>Agent execution trace tree</h3>
+                <span class="tag" id="traceTag">0 steps</span>
+              </div>
+              <div class="panel-body">
+                <div class="trace" id="traceTree"></div>
+              </div>
+            </div>
+
+            <div class="panel">
+              <div class="panel-head">
+                <h3>Cognitive compensator</h3>
+                <span class="tag" id="anomalyTag">0 anomalies</span>
+              </div>
+              <div class="panel-body">
+                <div class="metrics">
+                  <div class="metric">
+                    <div class="metric-k">Health score</div>
+                    <div class="metric-v" id="mHealth">0%</div>
+                    <div class="meter"><i id="mHealthBar"></i></div>
+                  </div>
+                  <div class="metric">
+                    <div class="metric-k">Total tokens</div>
+                    <div class="metric-v" id="mTokens">0</div>
+                  </div>
+                </div>
+
+                <div class="list-rows" id="anomalyList" style="margin-top: 16px"></div>
+
+                <div style="margin-top: 16px">
+                  <label class="field"><span>Fork point step ID</span>
+                    <input type="text" id="forkStep" value="step_2" />
+                  </label>
+                  <label class="field"><span>Synthetic tool payload (JSON)</span>
+                    <textarea id="forkPayload" rows="3">{"status":"CACHE_RESOLVED","cve":"CVE-2026-4109","safeVersion":"4.17.22"}</textarea>
+                  </label>
+                  <button class="btn btn-primary shine" id="btnFork" type="button" style="width: 100%; justify-content: center">
+                    Fork &amp; inject synthetic result
+                  </button>
+                </div>
+
+                <div style="margin-top: 16px">
+                  <div class="metric-k">Drift directives</div>
+                  <pre class="out" id="driftOut" style="margin-top: 8px; max-height: 180px"></pre>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ========================================= 5. ZKESCROW -->
+        <section class="lab-pane" id="zkescrow" role="tabpanel" aria-label="ZK Peer-to-Peer Escrow" hidden>
+          <div class="lab-head">
+            <div>
+              <span class="kicker">Module 05 · 3 WebMCP tools</span>
+              <h2>ZK Peer-to-Peer Escrow</h2>
+              <p>
+                A zero-backend cryptographic arbiter. Deliverables are fingerprinted with real
+                SHA-256 and compared strictly against the contractual digest; the HMAC-SHA-256
+                release proof is refused unless the milestone genuinely verified first.
+              </p>
+            </div>
+            <span class="status" data-level="ok" id="contractBadge">No contract</span>
+          </div>
+
+          <div class="btn-row" style="margin-bottom: 20px">
+            <button class="btn btn-sm shine" id="initContract" type="button">Initialise demo contract</button>
+            <button class="btn btn-sm btn-primary shine" id="btnVerify" type="button">Verify deliverable</button>
+            <button class="btn btn-sm shine" id="btnRelease" type="button">Sign escrow release</button>
+          </div>
+
+          <div class="lab-grid">
+            <div class="panel">
+              <div class="panel-head">
+                <h3>Cryptographic escrow contract</h3>
+                <span class="tag" id="escrowTotal">$0 USD</span>
+              </div>
+              <div class="panel-body">
+                <div class="list-rows">
+                  <div class="row-item">
+                    <h4>Contract ID</h4>
+                    <span class="row-val" id="escrowId">—</span>
+                  </div>
+                  <div class="row-item">
+                    <h4>Client key</h4>
+                    <span class="row-val" id="escrowClient">—</span>
+                  </div>
+                  <div class="row-item">
+                    <h4>Contractor key</h4>
+                    <span class="row-val" id="escrowContractor">—</span>
+                  </div>
+                  <div class="row-item">
+                    <h4>Arbiter</h4>
+                    <span class="row-val" id="escrowArbiter">—</span>
+                  </div>
+                </div>
+
+                <div class="metric-k" style="margin-top: 18px">Milestones</div>
+                <div class="list-rows" id="milestoneList" style="margin-top: 8px"></div>
+              </div>
+            </div>
+
+            <div class="panel">
+              <div class="panel-head">
+                <h3>Deliverable verification</h3>
+                <span class="status" data-level="ok" id="verdictBadge">Unverified</span>
+              </div>
+              <div class="panel-body">
+                <label class="field"><span>Milestone</span>
+                  <select id="milestoneSelect"></select>
+                </label>
+                <label class="field"><span>Submitted deliverable</span>
+                  <textarea id="deliverable" rows="4" spellcheck="false"></textarea>
+                </label>
+
+                <div class="list-rows">
+                  <div class="row-item">
+                    <h4>Computed SHA-256</h4>
+                    <span class="row-val" id="computedHash">—</span>
+                  </div>
+                  <div class="row-item">
+                    <h4>Contractual SHA-256</h4>
+                    <span class="row-val" id="expectedHash">—</span>
+                  </div>
+                </div>
+
+                <div style="margin-top: 16px">
+                  <div class="metric-k">Arbiter release proof</div>
+                  <pre class="out" id="proofOut" style="margin-top: 8px"></pre>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <footer class="site-footer">
+      <div class="wrap">
+        <div class="footer-bar" style="border-top: 0; margin-top: 0; padding-top: 0">
+          <span>© <span id="year">2026</span> SENTINEL · MIT Licence</span>
+          <span><a href="agent.html">Drive these tools from the agent cockpit →</a></span>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>

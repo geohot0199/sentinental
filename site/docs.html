@@ -1,0 +1,526 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Documentation — SENTINEL</title>
+    <meta
+      name="description"
+      content="SENTINEL documentation: architecture, the seven MCP tools, configuration reference, control and safety guarantees, degradation strategy, and local development."
+    />
+    <meta name="theme-color" content="#000000" />
+    <meta name="color-scheme" content="dark" />
+
+    <link rel="stylesheet" href="css/base.css" />
+    <link rel="stylesheet" href="css/components.css" />
+    <link rel="stylesheet" href="css/pages.css" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' fill='%23000'/><rect x='7' y='7' width='18' height='18' fill='none' stroke='%23fff' stroke-width='2'/><rect x='13' y='13' width='6' height='6' fill='%23fff'/></svg>"
+    />
+    <script type="module" src="js/ui.js"></script>
+    <script type="module" src="js/docs.js"></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+
+    <header class="site-header">
+      <div class="wrap header-inner">
+        <a class="brand" href="index.html">
+          <span class="brand-mark" aria-hidden="true"></span>
+          <span>
+            <span class="brand-text">SENTINEL</span>
+            <span class="brand-sub">docs</span>
+          </span>
+        </a>
+
+        <button
+          class="nav-toggle"
+          id="navToggle"
+          type="button"
+          aria-expanded="false"
+          aria-controls="primaryNav"
+          aria-label="Toggle navigation"
+        >
+          <span></span><span></span><span></span>
+        </button>
+
+        <nav class="nav" id="primaryNav" aria-label="Primary">
+          <a href="index.html">Overview</a>
+          <a href="index.html#pipeline">Pipeline</a>
+          <a href="index.html#tools">Tools</a>
+          <a href="scan.html">Live Scan</a>
+          <a href="labs.html">Omni-Lab</a>
+          <a href="agent.html">Agent</a>
+          <a href="docs.html">Docs</a>
+        </nav>
+      </div>
+    </header>
+
+    <main id="main" class="wrap" style="padding-top: 40px; padding-bottom: 80px">
+      <div class="docs-shell">
+        <nav class="docs-nav" id="docsNav" aria-label="Documentation sections">
+          <a href="#architecture">Architecture</a>
+          <a href="#tools">The 7 MCP tools</a>
+          <a href="#webmcp">WebMCP Omni-Lab</a>
+          <a href="#config">Configuration</a>
+          <a href="#safety">Control &amp; safety</a>
+          <a href="#degradation">Degradation</a>
+          <a href="#dev">Local development</a>
+          <a href="#faq">FAQ</a>
+        </nav>
+
+        <div>
+          <span class="kicker">Documentation</span>
+          <h1 style="font-size: clamp(2rem, 4vw, 2.8rem); margin-bottom: 12px">
+            How SENTINEL works
+          </h1>
+          <p class="lede" style="margin-bottom: 48px">
+            An autonomous supply-chain CVE strike team built on the TrueForge agent harness. We do
+            not reimplement any part of the agent loop — what we own is a tool server and two front
+            ends driving the same core.
+          </p>
+
+          <!-- ==================================== architecture -->
+          <section class="doc-block" id="architecture">
+            <h2>Architecture</h2>
+            <p>
+              Both the terminal client and the web console speak the same thin harness layer. The
+              agent loop, context management, subagents, approvals, session state and the sandbox
+              all live in TrueForge — re-writing them would be exactly the thin wrapper the project
+              avoids.
+            </p>
+
+            <pre class="ascii">┌──────────────────┐        ┌──────────────────┐
+│  Terminal client │        │    Web client    │
+│  (src/cli)       │        │  (src/web)       │
+│  Ink-free TTY    │        │  Hono + SSE + UI │
+└────────┬─────────┘        └────────┬─────────┘
+         │                           │
+         │  both speak the SAME core │
+         └─────────────┬─────────────┘
+                       ▼
+        ┌──────────────────────────────┐
+        │  src/harness (our thin layer)│
+        │  • provision.ts  idempotent  │
+        │  • runner.ts     turn loop   │
+        │  • agent-spec.ts behaviour   │
+        └──────────────┬───────────────┘
+                       │ @truefoundry/trueforge-sdk (HTTP)
+                       ▼
+        ╔══════════════════════════════╗
+        ║  TrueForge harness (theirs)  ║
+        ║  agent loop · context mgmt   ║
+        ║  subagents · approvals       ║
+        ║  session state · sandbox     ║
+        ╚═══╤══════════╤═══════════╤═══╝
+            │          │           │
+      model │      MCP │   sandbox │
+            ▼          ▼           ▼
+       OpenAI /    src/mcp      Daytona
+       Anthropic  (our tool     (isolated
+       / Gemini    server)        exec)</pre>
+
+            <h3>The critical design decision</h3>
+            <p>
+              There is no <code>while (toolCalls)</code>, no retry logic, no context compaction and
+              no approval state machine in this repository. The agent's behaviour is declared in
+              <code>src/harness/agent-spec.ts</code>:
+            </p>
+            <pre class="out"><code>return {
+  model: { name: config.provider.fqn },
+  instructions: buildInstructions(config),
+  mcpServers: [
+    {
+      name: MCP_SERVER_NAME,
+      preload: true,
+      enableTools: ["@all"],
+      // Belt and braces: the selector catches anything annotated
+      // destructive, the literal names catch a bad annotation.
+      requireApprovalForTools: ["@destructive", ...APPROVAL_REQUIRED],
+    },
+  ],
+  config: {
+    dynamicSubAgents: { enabled: true },
+    askUserQuestions: { enabled: true },
+    sandbox: { enabled: config.daytonaApiKey !== null, fileDownloads: true },
+    iterationLimit: 60,
+  },
+};</code></pre>
+          </section>
+
+          <!-- ============================================ tools -->
+          <section class="doc-block" id="tools">
+            <h2>The 7 MCP tools</h2>
+            <p>
+              Seven domain tools over remote streamable HTTP, bearer-authenticated. The safety
+              classification is declared on the tool, and both front ends inherit it automatically.
+            </p>
+
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th scope="col">Tool</th>
+                    <th scope="col">Annotation</th>
+                    <th scope="col">Approval</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr><td><code>scan_dependencies</code></td><td>readOnlyHint</td><td>no</td></tr>
+                  <tr><td><code>lookup_advisories</code></td><td>readOnlyHint</td><td>no</td></tr>
+                  <tr><td><code>assess_blast_radius</code></td><td>readOnlyHint</td><td>no</td></tr>
+                  <tr><td><code>summarise_triage</code></td><td>readOnlyHint</td><td>no</td></tr>
+                  <tr><td><code>propose_patch</code></td><td>readOnlyHint</td><td>no — sandbox writes only</td></tr>
+                  <tr><td><code>open_pull_request</code></td><td><strong>destructiveHint</strong></td><td><strong>yes</strong></td></tr>
+                  <tr><td><code>merge_pull_request</code></td><td><strong>destructiveHint</strong></td><td><strong>yes</strong></td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <h3>Classification lives next to the implementation</h3>
+            <pre class="out"><code>const readOnly = (title: string): ToolAnnotations =&gt; ({
+  title,
+  readOnlyHint: true,
+  destructiveHint: false,
+  idempotentHint: true,
+  openWorldHint: true,
+});
+
+const destructive = (title: string): ToolAnnotations =&gt; ({
+  title,
+  readOnlyHint: false,
+  destructiveHint: true,
+  idempotentHint: false,
+  openWorldHint: true,
+});</code></pre>
+            <p>
+              A read-only tool can never mutate a remote. Anything that touches GitHub state is
+              destructive by construction, so a mis-tagged tool fails closed.
+            </p>
+          </section>
+
+          <!-- =========================================== webmcp -->
+          <section class="doc-block" id="webmcp">
+            <h2>WebMCP Omni-Lab</h2>
+            <p>
+              The repository also ships a client-side WebMCP demonstration: five in-browser
+              laboratories registering 17 tools through the W3C/OpenAI
+              <code>document.modelContext.registerTool(...)</code> standard. The
+              <a href="labs.html">Omni-Lab</a> and the <a href="agent.html">agent cockpit</a> on
+              this site run that exact registry.
+            </p>
+
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th scope="col">Module</th>
+                    <th scope="col">Tools</th>
+                    <th scope="col">What it does</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><a href="labs.html#breachlab">BreachLab</a></td>
+                    <td class="mono">4</td>
+                    <td>AST triage, sandbox detonation, taint tracing, hotpatch synthesis</td>
+                  </tr>
+                  <tr>
+                    <td><a href="labs.html#biosynth">BioSynth</a></td>
+                    <td class="mono">3</td>
+                    <td>PDB parsing, ΔΔG point mutagenesis, binding pocket discovery</td>
+                  </tr>
+                  <tr>
+                    <td><a href="labs.html#chrono">ChronoForensic</a></td>
+                    <td class="mono">4</td>
+                    <td>Flash sync, TDOA triangulation, SHA-256 evidence dossier</td>
+                  </tr>
+                  <tr>
+                    <td><a href="labs.html#metaloop">MetaLoop</a></td>
+                    <td class="mono">3</td>
+                    <td>Trace inspection, synthetic injection, drift mitigation</td>
+                  </tr>
+                  <tr>
+                    <td><a href="labs.html#zkescrow">ZK Escrow</a></td>
+                    <td class="mono">3</td>
+                    <td>SHA-256 deliverable verification, HMAC release proofs</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <p style="margin-top: 16px">
+              The escrow and forensic modules use <strong>real SHA-256 / HMAC-SHA-256</strong>
+              digests, require a milestone to be verified before escrow release, and render agent
+              output through <code>textContent</code> rather than <code>innerHTML</code>.
+            </p>
+          </section>
+
+          <!-- =========================================== config -->
+          <section class="doc-block" id="config">
+            <h2>Configuration</h2>
+            <p>
+              Copy <code>.env.example</code> to <code>.env</code>, fill in what you need, leave the
+              rest commented. It is git-ignored and read in exactly one place
+              (<code>src/core/config.ts</code>).
+            </p>
+
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th scope="col">Variable</th>
+                    <th scope="col">Required</th>
+                    <th scope="col">Purpose</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><code>OPENAI_API_KEY</code> / <code>ANTHROPIC_API_KEY</code> / <code>GEMINI_API_KEY</code></td>
+                    <td><span class="tag tag-solid">one of</span></td>
+                    <td>The model. SENTINEL picks whichever it finds.</td>
+                  </tr>
+                  <tr>
+                    <td><code>MODEL_PROVIDER</code></td>
+                    <td><span class="tag">optional</span></td>
+                    <td>Force <code>openai</code> · <code>anthropic</code> · <code>google-gemini</code>.</td>
+                  </tr>
+                  <tr>
+                    <td><code>MODEL_ID</code></td>
+                    <td><span class="tag">optional</span></td>
+                    <td>Force a specific model from the harness catalog.</td>
+                  </tr>
+                  <tr>
+                    <td><code>GITHUB_TOKEN</code></td>
+                    <td><span class="tag tag-solid">yes</span></td>
+                    <td>Reading manifests, opening pull requests.</td>
+                  </tr>
+                  <tr>
+                    <td><code>SENTINEL_TARGET_REPO</code></td>
+                    <td><span class="tag">optional</span></td>
+                    <td>Default repository, as <code>owner/name</code>.</td>
+                  </tr>
+                  <tr>
+                    <td><code>DAYTONA_API_KEY</code></td>
+                    <td><span class="tag">recommended</span></td>
+                    <td>Sandbox. Without it every patch is reported unverified.</td>
+                  </tr>
+                  <tr>
+                    <td><code>SENTINEL_ALLOW_REMOTE_WRITES</code></td>
+                    <td><span class="tag">optional</span></td>
+                    <td>Hard kill switch. <code>false</code> makes destructive tools refuse.</td>
+                  </tr>
+                  <tr>
+                    <td><code>TRUEFORGE_URL</code></td>
+                    <td><span class="tag">optional</span></td>
+                    <td>Harness URL. Default <code>http://127.0.0.1:8790</code>.</td>
+                  </tr>
+                  <tr>
+                    <td><code>SENTINEL_MCP_PORT</code></td>
+                    <td><span class="tag">optional</span></td>
+                    <td>Tool server port. Default <code>8791</code>.</td>
+                  </tr>
+                  <tr>
+                    <td><code>SENTINEL_WEB_PORT</code></td>
+                    <td><span class="tag">optional</span></td>
+                    <td>Web console port. Default <code>3000</code>.</td>
+                  </tr>
+                  <tr>
+                    <td><code>SENTINEL_MCP_TOKEN</code></td>
+                    <td><span class="tag">optional</span></td>
+                    <td>Shared secret. Unset means a fresh random token every boot.</td>
+                  </tr>
+                  <tr>
+                    <td><code>SENTINEL_DEMO_MODEL_URL</code></td>
+                    <td><span class="tag">optional</span></td>
+                    <td>Point at the bundled scripted model for a keyless demo.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <p style="margin-top: 16px">
+              Secrets never enter the repository or the model's context. Keys live in
+              <code>.env</code>, are read once at provision time, handed to the harness over
+              localhost, and stored by the harness. <code>npm run scan:secrets</code> runs in CI
+              and fails the build on anything that looks like a live credential.
+            </p>
+          </section>
+
+          <!-- =========================================== safety -->
+          <section class="doc-block" id="safety">
+            <h2>Control and safety</h2>
+            <p>Structural, not a prompt the model can talk its way out of.</p>
+
+            <h3>1. The approval policy is declared once</h3>
+            <p>
+              TrueForge resolves its <code>@read-only</code> / <code>@write</code> /
+              <code>@destructive</code> approval selectors from MCP tool annotations, so the
+              classification lives next to the implementation and both front ends inherit it.
+            </p>
+
+            <h3>2. Defence in depth on the irreversible path</h3>
+            <ul>
+              <li>The agent spec gates <code>@destructive</code> <em>and</em> names both tools literally.</li>
+              <li>Destructive handlers check the kill switch <strong>before any network call</strong>.</li>
+              <li><code>GitHubClient</code> re-checks it again at the point of mutation.</li>
+              <li>Branch names are generated by us and validated against git's ref rules — the model never supplies a ref.</li>
+              <li>The web API only accepts approvals for tool calls the harness actually raised.</li>
+            </ul>
+
+            <pre class="out"><code>/** Deterministic, collision-resistant, and never model-authored. */
+export function remediationBranchName(seed: string): string {
+  const slug = seed
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 40);
+  const stamp = new Date().toISOString().slice(0, 10).replaceAll("-", "");
+  const nonce = globalThis.crypto.randomUUID().slice(0, 6);
+  return `sentinel/${stamp}-${slug.length &gt; 0 ? slug : "remediation"}-${nonce}`;
+}</code></pre>
+
+            <h3>3. Failing safe, and keeping secrets out</h3>
+            <ul>
+              <li>Empty input, EOF, Escape and unparseable answers all deny.</li>
+              <li>Keys live only in <code>.env</code>, git-ignored, read in one place.</li>
+              <li>The browser never talks to the harness or a provider directly.</li>
+              <li>Two-layer redaction scrubs every log line, tool result and SSE frame — exact values plus ten credential shapes.</li>
+              <li>The MCP token is compared in constant time.</li>
+            </ul>
+          </section>
+
+          <!-- ====================================== degradation -->
+          <section class="doc-block" id="degradation">
+            <h2>Degradation strategy</h2>
+            <p>Each capability degrades independently rather than failing the whole run.</p>
+
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr><th scope="col">Missing</th><th scope="col">Behaviour</th></tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Model key</td>
+                    <td>Hard fail at provision, with the exact env var named.</td>
+                  </tr>
+                  <tr>
+                    <td><code>DAYTONA_API_KEY</code></td>
+                    <td>Sandbox disabled; patch verification skipped and clearly reported as unverified.</td>
+                  </tr>
+                  <tr>
+                    <td><code>GITHUB_TOKEN</code></td>
+                    <td>GitHub tools return a typed "not configured" error; scanning and triage still work.</td>
+                  </tr>
+                  <tr>
+                    <td>Harness not running</td>
+                    <td>Clients print the <code>npx @truefoundry/trueforge</code> command instead of a stack trace.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <!-- ============================================== dev -->
+          <section class="doc-block" id="dev">
+            <h2>Local development &amp; testing</h2>
+            <pre class="out"><code>npm install              # install dependencies
+npm test                 # all unit and integration tests (142 passing)
+npm run test:watch       # watch mode
+npm run typecheck        # strict TypeScript, noEmit
+npm run scan:secrets     # fail on anything credential-shaped
+npm run lint             # eslint
+npm run build            # tsc emit to dist/
+npm run site:dev         # serve this site at http://localhost:4321</code></pre>
+
+            <p>
+              Verified against the real harness, not a reimplementation. The end-to-end approval
+              test drives the real <code>SentinelRunner</code> — the same class the CLI and web app
+              use.
+            </p>
+
+            <pre class="out"><code>$ node --experimental-strip-types scripts/e2e-approval.ts
+  ✓ harness reached our MCP tools
+  ✓ live advisory data returned through the harness
+  ✓ destructive tool triggered an approval gate
+  ✓ the gate correctly identified open_pull_request
+  ✓ a read-only tool ran WITHOUT a gate
+  ALL CHECKS PASSED</code></pre>
+
+            <p>
+              CI runs, in order: <strong>secret scan → typecheck → unit tests → dependency
+              audit</strong>.
+            </p>
+          </section>
+
+          <!-- ============================================== faq -->
+          <section class="doc-block" id="faq">
+            <h2>FAQ</h2>
+
+            <h3>Will it open a pull request without asking me?</h3>
+            <p>
+              No. <code>open_pull_request</code> and <code>merge_pull_request</code> are annotated
+              <code>destructiveHint</code>, so the harness raises a real approval gate. The turn
+              ends and waits. Denial is the default for every input it cannot interpret.
+            </p>
+
+            <h3>Do I need an API key to try it?</h3>
+            <p>
+              No. A scripted model endpoint ships with the repo, so the whole path — real advisory
+              data, real tools, real gate — runs without spending anything.
+            </p>
+
+            <h3>Which ecosystems does it cover?</h3>
+            <p>
+              Node and npm: it reads <code>package.json</code> plus the lockfile and triages
+              against the GitHub Advisory Database, with OSV as a fallback.
+            </p>
+
+            <h3>What happens without a sandbox key?</h3>
+            <p>
+              The agent cannot execute or test a patch, and is explicitly instructed to report
+              every patch as <strong>unverified</strong>. It never guesses that a fix works.
+            </p>
+
+            <h3>Can I run it fully read-only?</h3>
+            <p>
+              Yes — set <code>SENTINEL_ALLOW_REMOTE_WRITES=false</code>. Destructive tools then
+              refuse before any network call, regardless of what the model or the approval UI says.
+            </p>
+
+            <h3>Could a demo recording leak a token?</h3>
+            <p>
+              Not through us. Redaction runs in two layers — exact registered values plus ten
+              credential <em>shapes</em>, so even a key the model read out of a file in the sandbox
+              is scrubbed from every log line, tool result and SSE frame.
+            </p>
+          </section>
+
+          <div class="cta-band shine">
+            <h2>Try the tools, not the description.</h2>
+            <p>Seventeen WebMCP tools run live in your browser — no key, no backend, no signup.</p>
+            <div class="btn-row">
+              <a class="btn btn-primary shine" href="labs.html">Launch Omni-Lab</a>
+              <a class="btn shine" href="agent.html">Agent cockpit</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <footer class="site-footer">
+      <div class="wrap">
+        <div class="footer-bar" style="border-top: 0; margin-top: 0; padding-top: 0">
+          <span>© <span id="year">2026</span> SENTINEL · MIT Licence</span>
+          <span>
+            <a href="https://github.com/geohot0199/sentinental" target="_blank" rel="noopener">
+              Read the source on GitHub →
+            </a>
+          </span>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>
