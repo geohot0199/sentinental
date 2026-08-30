@@ -36,7 +36,7 @@ async function askApprovals(
 ): Promise<ApprovalDecision[]> {
   const decisions: ApprovalDecision[] = [];
   for (const approval of approvals) {
-    let answer = "";
+    let answer: string;
     try {
       answer = (
         await rl.question(
@@ -46,7 +46,8 @@ async function askApprovals(
         .trim()
         .toLowerCase();
     } catch {
-      answer = ""; // stream closed - treat as denial
+      // Stream closed: EOF defaults to denial.
+      answer = "";
     }
     const approved = answer === "y" || answer === "yes";
     decisions.push({

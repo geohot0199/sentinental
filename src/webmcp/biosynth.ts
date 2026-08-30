@@ -134,6 +134,7 @@ export function distance3D(a: { x: number; y: number; z: number }, b: { x: numbe
 /**
  * Simulates in-silico amino acid mutation and predicts stability change & steric clashes.
  */
+// eslint-disable-next-line complexity -- scoring branches, each one a named stability rule
 export function simulateMutation(
   atoms: Atom[],
   chain: string,

@@ -209,7 +209,7 @@ describe('SENTINEL OMNI-LAB: End-to-End Robustness & Security Verification', () 
   // GLOBAL WEBMCP STANDARD VALIDATION
   // -------------------------------------------------------------
   describe('WebMCP Standard Compliance (document.modelContext)', () => {
-    it('registers all tools and can execute each tool via WebMCP catalog schema', async () => {
+    it('registers all tools and can execute each tool via WebMCP catalog schema', () => {
       for (const tool of WEBMCP_TOOLS_CATALOG) {
         expect(tool.name).toBeDefined();
         expect(tool.description).toBeDefined();

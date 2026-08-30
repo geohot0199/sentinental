@@ -102,7 +102,14 @@ export function calculateShannonEntropy(str: string): number {
 /**
  * Deep static AST and heuristic pattern analyzer for code & dependency manifests.
  */
-export function analyzeCveAst(codeOrManifest: string, options?: { checkSupplyChain?: boolean }): BreachLabAnalysisResult {
+// `_options` is accepted for call-site compatibility (the browser bundle passes
+// `{ checkSupplyChain }`) but supply-chain checks are unconditional, so the
+// flag has no effect and is named as unused rather than silently ignored.
+// eslint-disable-next-line complexity, max-lines-per-function -- one branch per detection rule
+export function analyzeCveAst(
+  codeOrManifest: string,
+  _options?: { checkSupplyChain?: boolean },
+): BreachLabAnalysisResult {
   const lines = codeOrManifest.split('\n');
   const findings: VulnerabilityFinding[] = [];
   const nodes: AttackGraphNode[] = [];
@@ -304,6 +311,7 @@ export function analyzeCveAst(codeOrManifest: string, options?: { checkSupplyCha
 /**
  * Isolated Sandboxed Detonation runner (client-safe simulation).
  */
+// eslint-disable-next-line complexity -- one branch per intercepted sandbox capability
 export function detonateSandbox(
   code: string,
   config?: { timeoutMs?: number; mockEnv?: Record<string, string> }

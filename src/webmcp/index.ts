@@ -22,7 +22,13 @@ export interface WebMCPToolDefinition {
     properties: Record<string, unknown>;
     required?: string[];
   };
-  execute: (input: any) => Promise<any> | any;
+  /**
+   * Tool input arrives from the model as JSON validated against `inputSchema`
+   * above, so it is a flat JSON object rather than anything this module can
+   * name statically. Engines re-validate what they need.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  execute: (input: Record<string, any>) => unknown | Promise<unknown>;
 }
 
 /**
@@ -331,8 +337,19 @@ export const WEBMCP_TOOLS_CATALOG: WebMCPToolDefinition[] = [
 /**
  * Registers all 20 tools with the browser's native WebMCP modelContext object if available.
  */
-export function registerAllWebMCPTools(targetDoc?: any): { registeredCount: number; tools: string[] } {
-  const doc = targetDoc || (typeof globalThis !== 'undefined' && 'document' in globalThis ? (globalThis as any).document : null);
+/** A document that may carry the WebMCP `modelContext` registry. */
+interface WebMCPHost {
+  modelContext?: { registerTool?: (tool: unknown) => unknown };
+}
+
+export function registerAllWebMCPTools(
+  targetDoc?: WebMCPHost | null,
+): { registeredCount: number; tools: string[] } {
+  const doc: WebMCPHost | null =
+    targetDoc ??
+    (typeof globalThis !== 'undefined' && 'document' in globalThis
+      ? ((globalThis as { document?: WebMCPHost }).document ?? null)
+      : null);
   const registered: string[] = [];
 
   if (doc && doc.modelContext && typeof doc.modelContext.registerTool === 'function') {

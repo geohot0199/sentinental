@@ -91,6 +91,7 @@ function sseFrame(event: string, data: unknown): string {
   return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
 }
 
+// eslint-disable-next-line max-lines-per-function -- flat route table; splitting it moves it out of review
 export function buildWebApp(
   config: SentinelConfig,
   provisioning: ProvisionResult | null,
