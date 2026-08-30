@@ -100,13 +100,20 @@ function fromGitHub(
   packageName: string,
   installedVersion: string,
 ): AdvisoryMatch | null {
-  const entry = (advisory.vulnerabilities ?? []).find(
+  // A single advisory often lists one entry per release line (for example
+  // node-fetch "< 2.6.7" and ">= 3.0.0, < 3.1.1" under CVE-2022-0235). Match on
+  // the entry whose range actually covers the installed version, not merely the
+  // first entry naming the package, or older majors are silently cleared.
+  const entries = (advisory.vulnerabilities ?? []).filter(
     (v) => v.package?.name?.toLowerCase() === packageName.toLowerCase(),
   );
+  const entry = entries.find((v) => {
+    const candidate = v.vulnerable_version_range ?? "";
+    return candidate.length > 0 && versionInRange(installedVersion, candidate);
+  });
   if (entry === undefined) return null;
 
   const range = entry.vulnerable_version_range ?? "";
-  if (range.length === 0 || !versionInRange(installedVersion, range)) return null;
 
   const patched = entry.first_patched_version ?? null;
   return {
@@ -148,25 +155,52 @@ interface OsvVuln {
 }
 
 function fromOsv(vuln: OsvVuln, packageName: string, installedVersion: string): AdvisoryMatch | null {
-  const affected = (vuln.affected ?? []).find(
+  const affectedEntries = (vuln.affected ?? []).filter(
     (a) => a.package?.name?.toLowerCase() === packageName.toLowerCase(),
   );
 
-  // Reconstruct a readable range and the fix version from OSV's event stream.
-  let introduced: string | null = null;
+  // OSV splits release lines across `affected` entries and across `ranges`
+  // within an entry, each a stream of introduced/fixed events. Evaluate every
+  // interval and keep the one covering the installed version, so an old major
+  // is not cleared by a newer line's range.
+  let rangeText: string | null = null;
   let fixed: string | null = null;
-  for (const range of affected?.ranges ?? []) {
-    for (const event of range.events ?? []) {
-      if (typeof event.introduced === "string") introduced = event.introduced;
-      if (typeof event.fixed === "string") fixed = event.fixed;
+
+  outer: for (const affected of affectedEntries) {
+    for (const range of affected.ranges ?? []) {
+      let introducedAt: string | null = null;
+      for (const event of range.events ?? []) {
+        if (typeof event.introduced === "string") {
+          introducedAt = event.introduced;
+          continue;
+        }
+        if (typeof event.fixed !== "string") continue;
+
+        const parts: string[] = [];
+        if (introducedAt !== null && introducedAt !== "0") parts.push(`>= ${introducedAt}`);
+        parts.push(`< ${event.fixed}`);
+        const candidate = parts.join(", ");
+        if (versionInRange(installedVersion, candidate)) {
+          rangeText = candidate;
+          fixed = event.fixed;
+          break outer;
+        }
+        introducedAt = null;
+      }
+
+      // An interval left open (introduced with no fix) is still vulnerable.
+      if (introducedAt !== null) {
+        const candidate = introducedAt === "0" ? ">= 0.0.0" : `>= ${introducedAt}`;
+        if (versionInRange(installedVersion, candidate)) {
+          rangeText = candidate;
+          fixed = null;
+          break outer;
+        }
+      }
     }
   }
 
-  const parts: string[] = [];
-  if (introduced !== null && introduced !== "0") parts.push(`>= ${introduced}`);
-  if (fixed !== null) parts.push(`< ${fixed}`);
-  const rangeText = parts.length > 0 ? parts.join(", ") : ">= 0.0.0";
-  if (!versionInRange(installedVersion, rangeText)) return null;
+  if (rangeText === null) return null;
 
   const id = vuln.id ?? "UNKNOWN";
   const cve = (vuln.aliases ?? []).find((a) => a.startsWith("CVE-")) ?? null;
