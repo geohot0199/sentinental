@@ -25,11 +25,30 @@ export interface WebMCPToolDefinition {
   /**
    * Tool input arrives from the model as JSON validated against `inputSchema`
    * above, so it is a flat JSON object rather than anything this module can
-   * name statically. Engines re-validate what they need.
+   * name statically. Declared `unknown` — not `any` — so every `execute` below
+   * has to read through the `as*` coercions rather than trusting the shape.
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  execute: (input: Record<string, any>) => unknown | Promise<unknown>;
+  execute: (input: Record<string, unknown>) => unknown;
 }
+
+/**
+ * The WebMCP transport hands `execute` whatever the model produced; nothing in
+ * the runtime enforces `inputSchema`. These coercions are the boundary that
+ * turns that JSON into the types the engines actually take, so a malformed
+ * argument degrades to a default instead of poisoning an analysis downstream.
+ */
+const asString = (value: unknown, fallback = ""): string =>
+  typeof value === "string" ? value : fallback;
+const asNumber = (value: unknown, fallback: number): number =>
+  typeof value === "number" && Number.isFinite(value) ? value : fallback;
+const asBoolean = (value: unknown, fallback = false): boolean =>
+  typeof value === "boolean" ? value : fallback;
+const asObjectArray = <T>(value: unknown, fallback: T[]): T[] =>
+  Array.isArray(value) ? (value as T[]) : fallback;
+const asRecord = (value: unknown, fallback: Record<string, unknown>): Record<string, unknown> =>
+  value !== null && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : fallback;
 
 /**
  * The Master Catalog of 20 WebMCP Tools across all 5 Innovation Modules.
@@ -50,7 +69,9 @@ export const WEBMCP_TOOLS_CATALOG: WebMCPToolDefinition[] = [
       },
       required: ['codeOrManifest']
     },
-    execute: (input) => BreachLab.analyzeCveAst(input.codeOrManifest, { checkSupplyChain: input.checkSupplyChain })
+    execute: (input) => BreachLab.analyzeCveAst(asString(input.codeOrManifest), {
+      checkSupplyChain: asBoolean(input.checkSupplyChain)
+    })
   },
   {
     name: 'breachlab_detonate_sandbox',
@@ -64,7 +85,9 @@ export const WEBMCP_TOOLS_CATALOG: WebMCPToolDefinition[] = [
       },
       required: ['code']
     },
-    execute: (input) => BreachLab.detonateSandbox(input.code, { timeoutMs: input.timeoutMs })
+    execute: (input) => BreachLab.detonateSandbox(asString(input.code), {
+      timeoutMs: input.timeoutMs === undefined ? undefined : asNumber(input.timeoutMs, 0)
+    })
   },
   {
     name: 'breachlab_trace_taint_flow',
@@ -79,7 +102,11 @@ export const WEBMCP_TOOLS_CATALOG: WebMCPToolDefinition[] = [
       },
       required: ['code']
     },
-    execute: (input) => BreachLab.traceTaintFlow(input.code, input.sourcePattern, input.sinkPattern)
+    execute: (input) => BreachLab.traceTaintFlow(
+      asString(input.code),
+      input.sourcePattern === undefined ? undefined : asString(input.sourcePattern),
+      input.sinkPattern === undefined ? undefined : asString(input.sinkPattern)
+    )
   },
   {
     name: 'breachlab_generate_hotpatch',
@@ -92,7 +119,7 @@ export const WEBMCP_TOOLS_CATALOG: WebMCPToolDefinition[] = [
       },
       required: ['code']
     },
-    execute: (input) => BreachLab.generateHotpatch(input.code)
+    execute: (input) => BreachLab.generateHotpatch(asString(input.code))
   },
 
   // ==========================================
@@ -108,7 +135,7 @@ export const WEBMCP_TOOLS_CATALOG: WebMCPToolDefinition[] = [
         pdbContent: { type: 'string', description: 'Raw PDB text or empty to load default Crambin 1CRN fragment' }
       }
     },
-    execute: (input) => BioSynth.parsePDB(input?.pdbContent || BioSynth.SAMPLE_PDB_1CRN)
+    execute: (input) => BioSynth.parsePDB(asString(input?.pdbContent, BioSynth.SAMPLE_PDB_1CRN))
   },
   {
     name: 'biosynth_mutate_residue',
@@ -125,7 +152,12 @@ export const WEBMCP_TOOLS_CATALOG: WebMCPToolDefinition[] = [
     },
     execute: (input) => {
       const { atoms } = BioSynth.parsePDB(BioSynth.SAMPLE_PDB_1CRN);
-      return BioSynth.simulateMutation(atoms, input.chain, input.resSeq, input.targetResidue3);
+      return BioSynth.simulateMutation(
+        atoms,
+        asString(input.chain),
+        asNumber(input.resSeq, 1),
+        asString(input.targetResidue3)
+      );
     }
   },
   {
@@ -139,7 +171,7 @@ export const WEBMCP_TOOLS_CATALOG: WebMCPToolDefinition[] = [
       }
     },
     execute: (input) => {
-      const { atoms } = BioSynth.parsePDB(input?.pdbContent || BioSynth.SAMPLE_PDB_1CRN);
+      const { atoms } = BioSynth.parsePDB(asString(input?.pdbContent, BioSynth.SAMPLE_PDB_1CRN));
       return BioSynth.findBindingPockets(atoms);
     }
   },
@@ -172,8 +204,8 @@ export const WEBMCP_TOOLS_CATALOG: WebMCPToolDefinition[] = [
       required: ['referenceFeedId', 'targetFeedId']
     },
     execute: (input) => {
-      const ref = ChronoForensic.DEMO_FEEDS.find(f => f.id === input.referenceFeedId) || ChronoForensic.DEMO_FEEDS[0];
-      const target = ChronoForensic.DEMO_FEEDS.find(f => f.id === input.targetFeedId) || ChronoForensic.DEMO_FEEDS[1];
+      const ref = ChronoForensic.DEMO_FEEDS.find(f => f.id === asString(input.referenceFeedId)) || ChronoForensic.DEMO_FEEDS[0];
+      const target = ChronoForensic.DEMO_FEEDS.find(f => f.id === asString(input.targetFeedId)) || ChronoForensic.DEMO_FEEDS[1];
       if (!ref || !target) {
         throw new Error('Could not resolve reference and target feeds.');
       }
@@ -194,12 +226,12 @@ export const WEBMCP_TOOLS_CATALOG: WebMCPToolDefinition[] = [
       }
     },
     execute: (input) => {
-      const feeds = input?.feeds || ChronoForensic.DEMO_FEEDS.map(f => ({
+      const fallback = ChronoForensic.DEMO_FEEDS.map(f => ({
         feedId: f.id,
         position: f.geoPosition,
         arrivalTimeSec: f.acousticEvents[0]?.timestampSec ?? 0
       }));
-      return ChronoForensic.triangulateAcousticOrigin(feeds);
+      return ChronoForensic.triangulateAcousticOrigin(asObjectArray(input?.feeds, fallback));
     }
   },
   {
@@ -213,7 +245,10 @@ export const WEBMCP_TOOLS_CATALOG: WebMCPToolDefinition[] = [
       },
       required: ['incidentId']
     },
-    execute: (input) => ChronoForensic.buildForensicDossier(input.incidentId, ChronoForensic.DEMO_FEEDS)
+    execute: (input) => ChronoForensic.buildForensicDossier(
+      asString(input.incidentId),
+      ChronoForensic.DEMO_FEEDS
+    )
   },
 
   // ==========================================
@@ -246,9 +281,9 @@ export const WEBMCP_TOOLS_CATALOG: WebMCPToolDefinition[] = [
     },
     execute: (input) => MetaLoop.forkAndInjectSyntheticTool(
       MetaLoop.DEMO_AGENT_TRACES,
-      input.forkPointStepId,
-      input.syntheticToolName,
-      input.syntheticOutput
+      asString(input.forkPointStepId),
+      asString(input.syntheticToolName),
+      asRecord(input.syntheticOutput, {})
     )
   },
   {
@@ -284,11 +319,11 @@ export const WEBMCP_TOOLS_CATALOG: WebMCPToolDefinition[] = [
       required: ['contractorName', 'clientName']
     },
     execute: (input) => ZkEscrow.createEscrowContract(
-      input.contractorName,
-      input.clientName,
-      input.milestones || [
+      asString(input.contractorName),
+      asString(input.clientName),
+      asObjectArray(input.milestones, [
         { title: 'Core Implementation', payoutAmountUsd: 1000, acceptanceCriteria: ['Must pass tests'] }
-      ]
+      ])
     )
   },
   {
@@ -304,13 +339,13 @@ export const WEBMCP_TOOLS_CATALOG: WebMCPToolDefinition[] = [
       required: ['milestoneId', 'submittedContent']
     },
     execute: (input) => {
-      const content = String(input.submittedContent ?? '');
+      const content = asString(input.submittedContent);
       // Assertions are derived from the deliverable itself, never hard-coded
       // to pass, so the verification verdict reflects the content actually
       // submitted rather than a canned "true".
       return ZkEscrow.verifyMilestoneDeliverable(
         ZkEscrow.DEMO_CONTRACT,
-        input.milestoneId,
+        asString(input.milestoneId),
         content,
         [
           { description: 'No dynamic eval() statements', pass: !content.includes('eval(') },
@@ -330,7 +365,7 @@ export const WEBMCP_TOOLS_CATALOG: WebMCPToolDefinition[] = [
       },
       required: ['milestoneId']
     },
-    execute: (input) => ZkEscrow.signEscrowRelease(ZkEscrow.DEMO_CONTRACT, input.milestoneId)
+    execute: (input) => ZkEscrow.signEscrowRelease(ZkEscrow.DEMO_CONTRACT, asString(input.milestoneId))
   }
 ];
 

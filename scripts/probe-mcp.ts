@@ -45,7 +45,7 @@ if (toolName !== undefined) {
   for (const part of content) {
     if (part.type === "text") process.stdout.write(`${part.text ?? ""}\n`);
   }
-  process.stdout.write(`\nisError: ${String(result.isError ?? false)}\n`);
+  process.stdout.write(`\nisError: ${result.isError === true}\n`);
 }
 
 await client.close();

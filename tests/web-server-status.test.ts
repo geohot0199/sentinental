@@ -80,7 +80,11 @@ describe("GET /api/status", () => {
     const { status, body } = await getStatus(bareConfig, null, null);
 
     expect(status).toBe(200);
-    expect(body).toEqual({
+    // Asserted in two halves: the exact key set, then the warnings. Vitest
+    // types `arrayContaining` as returning `any`, and embedding it in the
+    // object literal would assign that `any` into the expected shape.
+    const { warnings, ...rest } = body;
+    expect(rest).toEqual({
       ready: true,
       error: null,
       model: null,
@@ -88,12 +92,14 @@ describe("GET /api/status", () => {
       github: false,
       remoteWrites: true,
       targetRepo: null,
-      warnings: expect.arrayContaining([
+    });
+    expect(warnings).toEqual(
+      expect.arrayContaining([
         expect.stringContaining("No model key found"),
         expect.stringContaining("DAYTONA_API_KEY not set"),
         expect.stringContaining("GITHUB_TOKEN not set"),
       ]),
-    });
+    );
   });
 
   it("reports the provisioned model, sandbox and warnings", async () => {

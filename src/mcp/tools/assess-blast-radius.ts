@@ -5,7 +5,7 @@ import { SentinelError } from "../../core/errors.ts";
 import { httpJson } from "../../core/http.ts";
 import { isValidPackageName } from "../../core/manifest.ts";
 import { classifyBump } from "../../core/semver.ts";
-import { readOnly, resolveRepo, type ToolDefinition } from "./shared.ts";
+import { asText, readOnly, resolveRepo, type ToolDefinition } from "./shared.ts";
 
 export const assessBlastRadius: ToolDefinition = {
   name: "assess_blast_radius",
@@ -21,9 +21,9 @@ export const assessBlastRadius: ToolDefinition = {
     toVersion: z.string().describe("Proposed target version."),
   },
   async handler(args, ctx) {
-    const packageName = String(args.packageName ?? "");
-    const fromVersion = String(args.fromVersion ?? "");
-    const toVersion = String(args.toVersion ?? "");
+    const packageName = asText(args.packageName);
+    const fromVersion = asText(args.fromVersion);
+    const toVersion = asText(args.toVersion);
     if (!isValidPackageName(packageName)) {
       throw new SentinelError("invalid_input", `Invalid package name "${packageName}".`);
     }

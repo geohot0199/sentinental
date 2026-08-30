@@ -143,7 +143,8 @@ function textOf(content: TrueForgeApi.ModelMessageEventContent | null | undefine
       .map((part) => {
         if (typeof part === "string") return part;
         if (part !== null && typeof part === "object" && "text" in part) {
-          return String((part as { text?: unknown }).text ?? "");
+          const text = (part as { text?: unknown }).text;
+          return typeof text === "string" ? text : "";
         }
         return "";
       })
@@ -209,7 +210,7 @@ export class SentinelRunner {
       if (collected.length >= 500) break; // bound the replay
     }
     for (const item of collected.reverse()) {
-      events.push(...this.#translate(item.event as TrueForgeApi.TurnStreamingEvent));
+      events.push(...this.#translate(item.event));
     }
     return events;
   }
@@ -314,7 +315,7 @@ export class SentinelRunner {
       }
 
       case "model.message": {
-        const message = event as TrueForgeApi.ModelMessageEvent;
+        const message = event;
         const threadId = message.threadId ?? "main";
 
         if (typeof message.reasoningContent === "string" && message.reasoningContent.length > 0) {
@@ -400,7 +401,7 @@ export class SentinelRunner {
       }
 
       case "tool.response": {
-        const response = event as TrueForgeApi.ToolResponseEvent;
+        const response = event;
         out.push({
           kind: "tool-result",
           toolCallId: response.toolCallId,
@@ -411,7 +412,7 @@ export class SentinelRunner {
       }
 
       case "tool.approval_required": {
-        const approval = event as TrueForgeApi.ToolApprovalRequiredEvent;
+        const approval = event;
         const approvals: PendingApproval[] = approval.toolCalls.map((call) => ({
           toolCallId: call.id,
           threadId: approval.threadId,
@@ -441,7 +442,7 @@ export class SentinelRunner {
       }
 
       case "turn.done": {
-        const done = event as TrueForgeApi.TurnDoneEvent;
+        const done = event;
         const status =
           typeof done.state === "string"
             ? done.state

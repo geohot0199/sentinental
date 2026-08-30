@@ -13,7 +13,7 @@ import * as http from "../src/core/http.ts";
  * exercises the real parsing and range logic.
  */
 function stubHttp(handler: (url: string) => unknown): void {
-  vi.spyOn(http, "httpJson").mockImplementation(async (url: string) => handler(url) as never);
+  vi.spyOn(http, "httpJson").mockImplementation((url: string) => Promise.resolve(handler(url)));
 }
 
 /**
@@ -259,11 +259,11 @@ describe("lookupAdvisories: input guards", () => {
     const spy = vi.spyOn(http, "httpJson").mockResolvedValue([] as never);
 
     await lookupAdvisories("demo", "1.0.0", "npm", null);
-    const anonymous = spy.mock.calls[0]?.[1] as { headers?: Record<string, string> } | undefined;
+    const anonymous = spy.mock.calls[0]?.[1];
     expect(anonymous?.headers?.authorization).toBeUndefined();
 
     await lookupAdvisories("demo", "1.0.0", "npm", "ghp_example");
-    const authorised = spy.mock.calls[1]?.[1] as { headers?: Record<string, string> } | undefined;
+    const authorised = spy.mock.calls[1]?.[1];
     expect(authorised?.headers?.authorization).toBe("Bearer ghp_example");
   });
 });

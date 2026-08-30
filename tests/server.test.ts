@@ -109,6 +109,16 @@ describe("buildPlan", () => {
   });
 });
 
+/** `JSON.parse` returns `any`; give the generated patch a shape to read. */
+interface PatchManifest {
+  name?: string;
+  dependencies?: Record<string, string>;
+  devDependencies?: Record<string, string>;
+}
+function parsePatch(content: string | null): PatchManifest {
+  return JSON.parse(content ?? "{}") as PatchManifest;
+}
+
 describe("buildPatch", () => {
   const manifest = JSON.stringify(
     {
@@ -125,7 +135,7 @@ describe("buildPatch", () => {
       packageName: "x",
       installedVersion: "1.0.0",
       targetVersion: "2.0.0",
-      worstSeverity: "high" as Severity,
+      worstSeverity: "high",
       advisoryCount: 1,
       bump: "major",
       ...e,
@@ -136,31 +146,31 @@ describe("buildPatch", () => {
   // project's update policy, so the operator has to survive.
   it("preserves the caret range operator", () => {
     const result = buildPatch(manifest, plan([{ packageName: "lodash", targetVersion: "4.18.0" }]));
-    const parsed = JSON.parse(result.content ?? "{}");
+    const parsed = parsePatch(result.content);
 
-    expect(parsed.dependencies.lodash).toBe("^4.18.0");
+    expect(parsed.dependencies?.lodash).toBe("^4.18.0");
   });
 
   it("preserves the tilde operator and patches devDependencies", () => {
     const result = buildPatch(manifest, plan([{ packageName: "vitest", targetVersion: "1.6.1" }]));
-    const parsed = JSON.parse(result.content ?? "{}");
+    const parsed = parsePatch(result.content);
 
-    expect(parsed.devDependencies.vitest).toBe("~1.6.1");
+    expect(parsed.devDependencies?.vitest).toBe("~1.6.1");
   });
 
   it("keeps an exact pin exact", () => {
     const result = buildPatch(manifest, plan([{ packageName: "minimist", targetVersion: "1.2.6" }]));
-    const parsed = JSON.parse(result.content ?? "{}");
+    const parsed = parsePatch(result.content);
 
-    expect(parsed.dependencies.minimist).toBe("1.2.6");
+    expect(parsed.dependencies?.minimist).toBe("1.2.6");
   });
 
   it("leaves untouched packages alone", () => {
     const result = buildPatch(manifest, plan([{ packageName: "lodash", targetVersion: "4.18.0" }]));
-    const parsed = JSON.parse(result.content ?? "{}");
+    const parsed = parsePatch(result.content);
 
-    expect(parsed.dependencies.minimist).toBe("1.2.0");
-    expect(parsed.devDependencies.vitest).toBe("~1.0.0");
+    expect(parsed.dependencies?.minimist).toBe("1.2.0");
+    expect(parsed.devDependencies?.vitest).toBe("~1.0.0");
     expect(parsed.name).toBe("demo");
   });
 

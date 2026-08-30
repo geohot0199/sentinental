@@ -2,7 +2,7 @@
 import { z } from "zod";
 import { notConfigured, SentinelError } from "../../core/errors.ts";
 import { remediationBranchName } from "../../core/github.ts";
-import { assertWritesAllowed, destructive, resolveRepo, type ToolDefinition } from "./shared.ts";
+import { asText, assertWritesAllowed, destructive, resolveRepo, type ToolDefinition } from "./shared.ts";
 
 export const openPullRequest: ToolDefinition = {
   name: "open_pull_request",
@@ -27,10 +27,10 @@ export const openPullRequest: ToolDefinition = {
     assertWritesAllowed(ctx, "Opening a pull request");
     const ref = resolveRepo(args.repo, ctx.config);
 
-    const title = String(args.title ?? "").trim();
-    const body = String(args.body ?? "").trim();
-    const filePath = String(args.filePath ?? "").trim();
-    const fileContent = String(args.fileContent ?? "");
+    const title = asText(args.title).trim();
+    const body = asText(args.body).trim();
+    const filePath = asText(args.filePath).trim();
+    const fileContent = asText(args.fileContent);
     if (title.length === 0 || body.length === 0 || filePath.length === 0 || fileContent.length === 0) {
       throw new SentinelError(
         "invalid_input",

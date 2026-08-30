@@ -151,16 +151,16 @@ async function provisionModelProvider(
   // createOrUpdate: safe to run on every boot, and rotates the key if changed.
   await client.settings.modelProviders.createOrUpdate({
     manifest: {
-      type: provider.id as "openai",
+      type: provider.id,
       auth: { apiKey: provider.apiKey },
       models: [
         {
           name: model.name,
           modelId: model.model_id,
-          properties: (model.properties ?? {}) as TrueForgeApi.ModelProperties,
+          properties: model.properties ?? {},
         },
       ],
-    } as TrueForgeApi.ModelProviderManifest,
+    },
   });
 
   const fqn = `${provider.id}/${model.name}`;
