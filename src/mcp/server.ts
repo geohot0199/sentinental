@@ -9,13 +9,13 @@
  * model never sees it. This matters because the server exposes tools that can
  * open pull requests.
  */
-import { serve } from "@hono/node-server";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 // Web-standard transport: takes a `Request` and returns a `Response`, which is
 // exactly what Hono hands us. The Node variant expects (req, res) instead.
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { Hono } from "hono";
-import { pathToFileURL } from "node:url";
+import { createHash, timingSafeEqual } from "node:crypto";
+import { isEntrypoint, listenOrExit } from "../core/serve.ts";
 import { loadConfig, type SentinelConfig } from "../core/config.ts";
 import { GitHubClient } from "../core/github.ts";
 import { registerSecrets } from "../core/redact.ts";
@@ -64,12 +64,17 @@ export function buildMcpServer(config: SentinelConfig): McpServer {
   return server;
 }
 
-/** Constant-time compare so the token cannot be recovered by timing. */
-function safeEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
-  let diff = 0;
-  for (let i = 0; i < a.length; i += 1) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  return diff === 0;
+/**
+ * Constant-time token comparison that does not leak the secret's length.
+ *
+ * Comparing SHA-256 digests with `crypto.timingSafeEqual` means the early exit
+ * is on a fixed-size hash, not on the token itself: length, prefix, and byte
+ * position are all invisible to a timing probe.
+ */
+function safeEqual(presented: string, expected: string): boolean {
+  const a = createHash("sha256").update(presented).digest();
+  const b = createHash("sha256").update(expected).digest();
+  return timingSafeEqual(a, b);
 }
 
 export function buildApp(config: SentinelConfig): Hono {
@@ -110,31 +115,25 @@ export function buildApp(config: SentinelConfig): Hono {
   return app;
 }
 
-export function startMcpServer(config: SentinelConfig): { close: () => void } {
+/**
+ * Bind the MCP tool server and resolve once the socket is actually listening.
+ *
+ * A busy port is fatal here (one clear line via `listenOrExit`): both callers
+ * - the CLI and the web console - are useless without their tool server.
+ */
+export async function startMcpServer(config: SentinelConfig): Promise<{ close: () => void }> {
   const app = buildApp(config);
-  const server = serve({ fetch: app.fetch, port: config.mcpPort, hostname: "127.0.0.1" });
-  return {
-    close: () => {
-      server.close();
-    },
-  };
+  return await listenOrExit(app, {
+    port: config.mcpPort,
+    hostname: "127.0.0.1",
+    label: "SENTINEL MCP server",
+  });
 }
 
-/** True when this file was launched directly rather than imported. */
-function isEntrypoint(): boolean {
-  const entry = process.argv[1];
-  if (entry === undefined) return false;
-  try {
-    return import.meta.url === pathToFileURL(entry).href;
-  } catch {
-    return false;
-  }
-}
-
-if (isEntrypoint()) {
+if (isEntrypoint(import.meta.url)) {
   const config = loadConfig();
   registerSecrets([config.githubToken, config.daytonaApiKey, config.mcpToken, config.provider?.apiKey]);
-  startMcpServer(config);
+  await startMcpServer(config);
   process.stdout.write(
     `SENTINEL MCP server listening on http://127.0.0.1:${config.mcpPort}/mcp (${TOOLS.length} tools)\n`,
   );

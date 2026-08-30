@@ -318,13 +318,23 @@ export const WEBMCP_TOOLS_CATALOG: WebMCPToolDefinition[] = [
       },
       required: ['contractorName', 'clientName']
     },
-    execute: (input) => ZkEscrow.createEscrowContract(
-      asString(input.contractorName),
-      asString(input.clientName),
-      asObjectArray(input.milestones, [
-        { title: 'Core Implementation', payoutAmountUsd: 1000, acceptanceCriteria: ['Must pass tests'] }
-      ])
-    )
+    execute: (input) => {
+      const contract = ZkEscrow.createEscrowContract(
+        asString(input.contractorName),
+        asString(input.clientName),
+        asObjectArray(input.milestones, [
+          { title: 'Core Implementation', payoutAmountUsd: 1000, acceptanceCriteria: ['Must pass tests'] }
+        ])
+      );
+      // The arbiter HMAC key authorises fund release. Handing it to the caller
+      // would let the model forge its own release proofs, so the result carries
+      // a fingerprint only; the engine keeps the real key internally.
+      const { arbiterSecretKey, ...publicContract } = contract;
+      return {
+        ...publicContract,
+        arbiterSecretKey: `fingerprint:${ZkEscrow.calculateSha256(arbiterSecretKey).slice(0, 16)}`,
+      };
+    }
   },
   {
     name: 'zkescrow_verify_deliverable_hash',

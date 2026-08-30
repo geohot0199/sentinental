@@ -73,6 +73,18 @@ export class Scanner {
   }
 
   /**
+   * True once the scan row is gone (deleted while queued or running).
+   *
+   * A concurrent DELETE must not kill the process: the events table has a
+   * foreign key on scans, so writing progress for a deleted scan raises an FK
+   * error - and `run()` is fire-and-forget from the HTTP handler, so a throw
+   * here becomes an unhandled rejection. Instead, notice the deletion and stop.
+   */
+  #scanVanished(scanId: string): boolean {
+    return this.#db.getScan(scanId) === null;
+  }
+
+  /**
    * Run a scan to completion. Callers do not await this: the HTTP handler
    * returns the id immediately and the browser follows the SSE stream.
    */
@@ -80,108 +92,130 @@ export class Scanner {
     const scan = this.#db.getScan(scanId);
     if (scan === null) return;
 
+    // `run()` is launched with `void` from the HTTP handler, so it must never
+    // reject: a scan deleted mid-run (or any unexpected failure) ends the scan,
+    // it does not take the process down with an unhandled rejection.
     try {
-      this.#db.setScanStatus(scanId, "running");
-      this.#emit(scanId, "start", `Scan started for ${scan.target}.`);
-
-      // ---------------------------------------------------- 01 inventory
-      const { manifestRaw, lockRaw, lockName, label } = await this.#loadManifest(scan);
-      const inventory = scanManifest(manifestRaw, lockRaw, lockName);
-      for (const warning of inventory.warnings) this.#emit(scanId, "inventory", warning);
-
-      const dependencies = inventory.dependencies;
-      this.#emit(
-        scanId,
-        "inventory",
-        `Resolved ${dependencies.length} dependencies from ${label}${lockName === null ? "" : ` + ${lockName}`}.`,
-      );
-
-      if (dependencies.length === 0) {
-        this.#db.setScanTotals(scanId, 0, 0, null);
-        this.#db.setScanStatus(scanId, "done");
-        this.#emit(scanId, "done", "No dependencies to triage.");
-        return;
-      }
-
-      // ------------------------------------------------------- 02 triage
-      const queue = dependencies.filter((d) => isValidPackageName(d.name)).slice(0, MAX_PACKAGES);
-      if (queue.length < dependencies.length) {
-        this.#emit(
-          scanId,
-          "triage",
-          `Triaging the first ${queue.length} of ${dependencies.length} dependencies.`,
-        );
-      }
-
-      const matches = await this.#triage(scanId, queue);
-
-      // -------------------------------------------------------- 03 store
-      this.#db.addFindings(
-        scanId,
-        matches.map((m) => ({
-          packageName: m.packageName,
-          installedVersion: m.installedVersion,
-          advisoryId: m.advisory.id,
-          cve: m.advisory.cve,
-          severity: m.advisory.severity,
-          cvssScore: m.advisory.cvssScore,
-          summary: m.advisory.summary,
-          url: m.advisory.url,
-          vulnerableRange: m.advisory.vulnerableRange,
-          recommendedVersion: m.recommendedVersion,
-          bump: m.bump,
-        })),
-      );
-
-      const worst =
-        matches.length === 0
-          ? null
-          : matches
-              .map((m) => m.advisory.severity)
-              .sort((a, b) => severityRank(b) - severityRank(a))[0] ?? null;
-      this.#db.setScanTotals(scanId, dependencies.length, matches.length, worst);
-
-      // --------------------------------------------------------- 04 plan
-      const plan = buildPlan(matches);
-      this.#db.setScanPlan(scanId, plan);
-
-      if (plan.length === 0) {
-        this.#emit(scanId, "plan", "No affected packages. Nothing to patch.");
-      } else {
-        this.#emit(
-          scanId,
-          "plan",
-          `Remediation plan: ${plan.filter((p) => p.targetVersion !== null).length} upgradable, ` +
-            `${plan.filter((p) => p.targetVersion === null).length} awaiting a published fix.`,
-        );
-      }
-
-      // -------------------------------------------------------- 05 patch
-      const patch = buildPatch(manifestRaw, plan);
-      this.#db.setScanPatch(scanId, patch);
-      if (patch.applied.length > 0) {
-        this.#emit(
-          scanId,
-          "patch",
-          `Patched package.json with ${patch.applied.length} upgrade(s), range operators preserved.`,
-        );
-      }
-
-      // ------------------------------------------------------ 06 propose
-      this.#db.setScanStatus(scanId, "done");
-      this.#emit(
-        scanId,
-        "done",
-        matches.length === 0
-          ? "Scan complete. No advisories match the versions in use."
-          : `Scan complete. ${matches.length} advisory match(es) across ${plan.length} package(s).`,
-      );
+      await this.#execute(scanId, scan.target, scan.source);
     } catch (cause) {
+      if (this.#scanVanished(scanId)) return; // deleted mid-run; nothing to report
       const error = toSentinelError(cause);
       const detail = error.remedy === null ? error.message : `${error.message} ${error.remedy}`;
-      this.#db.setScanStatus(scanId, "failed", detail);
-      this.#emit(scanId, "error", detail);
+      try {
+        this.#db.setScanStatus(scanId, "failed", detail);
+        this.#emit(scanId, "error", detail);
+      } catch {
+        // The scan row can disappear between the check above and this write;
+        // the scan is gone either way, and nobody is listening.
+      }
     }
+  }
+
+  async #execute(
+    scanId: string,
+    target: string,
+    source: "repo" | "manifest",
+  ): Promise<void> {
+    // Errors deliberately propagate to `run()`, which owns failure reporting.
+    this.#db.setScanStatus(scanId, "running");
+    this.#emit(scanId, "start", `Scan started for ${target}.`);
+
+    // ---------------------------------------------------- 01 inventory
+    const { manifestRaw, lockRaw, lockName, label } = await this.#loadManifest({
+      id: scanId,
+      source,
+      target,
+    });
+    const inventory = scanManifest(manifestRaw, lockRaw, lockName);
+    for (const warning of inventory.warnings) this.#emit(scanId, "inventory", warning);
+
+    const dependencies = inventory.dependencies;
+    this.#emit(
+      scanId,
+      "inventory",
+      `Resolved ${dependencies.length} dependencies from ${label}${lockName === null ? "" : ` + ${lockName}`}.`,
+    );
+
+    if (dependencies.length === 0) {
+      this.#db.setScanTotals(scanId, 0, 0, null);
+      this.#db.setScanStatus(scanId, "done");
+      this.#emit(scanId, "done", "No dependencies to triage.");
+      return;
+    }
+
+    // ------------------------------------------------------- 02 triage
+    const queue = dependencies.filter((d) => isValidPackageName(d.name)).slice(0, MAX_PACKAGES);
+    if (queue.length < dependencies.length) {
+      this.#emit(
+        scanId,
+        "triage",
+        `Triaging the first ${queue.length} of ${dependencies.length} dependencies.`,
+      );
+    }
+
+    const matches = await this.#triage(scanId, queue);
+
+    // -------------------------------------------------------- 03 store
+    this.#db.addFindings(
+      scanId,
+      matches.map((m) => ({
+        packageName: m.packageName,
+        installedVersion: m.installedVersion,
+        advisoryId: m.advisory.id,
+        cve: m.advisory.cve,
+        severity: m.advisory.severity,
+        cvssScore: m.advisory.cvssScore,
+        summary: m.advisory.summary,
+        url: m.advisory.url,
+        vulnerableRange: m.advisory.vulnerableRange,
+        recommendedVersion: m.recommendedVersion,
+        bump: m.bump,
+      })),
+    );
+
+    const worst =
+      matches.length === 0
+        ? null
+        : matches
+            .map((m) => m.advisory.severity)
+            .sort((a, b) => severityRank(b) - severityRank(a))[0] ?? null;
+    this.#db.setScanTotals(scanId, dependencies.length, matches.length, worst);
+
+    // --------------------------------------------------------- 04 plan
+    const plan = buildPlan(matches);
+    this.#db.setScanPlan(scanId, plan);
+
+    if (plan.length === 0) {
+      this.#emit(scanId, "plan", "No affected packages. Nothing to patch.");
+    } else {
+      this.#emit(
+        scanId,
+        "plan",
+        `Remediation plan: ${plan.filter((p) => p.targetVersion !== null).length} upgradable, ` +
+          `${plan.filter((p) => p.targetVersion === null).length} awaiting a published fix.`,
+      );
+    }
+
+    // -------------------------------------------------------- 05 patch
+    const patch = buildPatch(manifestRaw, plan);
+    this.#db.setScanPatch(scanId, patch);
+    if (patch.applied.length > 0) {
+      this.#emit(
+        scanId,
+        "patch",
+        `Patched package.json with ${patch.applied.length} upgrade(s), range operators preserved.`,
+      );
+    }
+
+    // ------------------------------------------------------ 06 propose
+    this.#db.setScanStatus(scanId, "done");
+    this.#emit(
+      scanId,
+      "done",
+      matches.length === 0
+        ? "Scan complete. No advisories match the versions in use."
+        : `Scan complete. ${matches.length} advisory match(es) across ${plan.length} package(s).`,
+    );
   }
 
   /** Fetch the manifest, either from GitHub or from the pasted body. */

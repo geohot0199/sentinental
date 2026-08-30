@@ -15,6 +15,15 @@
 /** Values registered at boot from config. Module-level so every layer shares it. */
 const knownSecrets = new Set<string>();
 
+/**
+ * Longest-first snapshot of `knownSecrets`, invalidated on registration.
+ *
+ * `redact()` runs on every streamed delta, so sorting per call (O(n log n)
+ * each frame) was measurable waste; the set only changes at boot or in tests,
+ * so the sorted view is cached instead.
+ */
+let sortedSecrets: string[] = [];
+
 /** Secrets shorter than this are too likely to appear in ordinary prose. */
 const MIN_SECRET_LENGTH = 8;
 
@@ -22,7 +31,10 @@ export function registerSecret(value: string | null | undefined): void {
   if (typeof value !== "string") return;
   const trimmed = value.trim();
   if (trimmed.length < MIN_SECRET_LENGTH) return;
-  knownSecrets.add(trimmed);
+  if (!knownSecrets.has(trimmed)) {
+    knownSecrets.add(trimmed);
+    sortedSecrets = []; // invalidate the cache
+  }
 }
 
 export function registerSecrets(values: readonly (string | null | undefined)[]): void {
@@ -32,6 +44,7 @@ export function registerSecrets(values: readonly (string | null | undefined)[]):
 /** Test seam. Not used in normal operation. */
 export function __clearSecretsForTest(): void {
   knownSecrets.clear();
+  sortedSecrets = [];
 }
 
 /**
@@ -63,9 +76,12 @@ export function redact(input: string): string {
   let output = input;
 
   // Layer 1: exact known values, longest first so a key containing another
-  // key's prefix is not partially rewritten.
-  const sorted = [...knownSecrets].sort((a, b) => b.length - a.length);
-  for (const secret of sorted) {
+  // key's prefix is not partially rewritten. The sorted view is cached and
+  // invalidated by registerSecret, because this runs on every streamed delta.
+  if (sortedSecrets.length === 0 && knownSecrets.size > 0) {
+    sortedSecrets = [...knownSecrets].sort((a, b) => b.length - a.length);
+  }
+  for (const secret of sortedSecrets) {
     if (output.includes(secret)) {
       output = output.replaceAll(secret, MASK);
     }

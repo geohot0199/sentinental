@@ -10,20 +10,24 @@
  *  - Every response is redacted before it leaves the process.
  *  - Write endpoints are rate limited and bounded in size.
  */
-import { serve } from "@hono/node-server";
 import { Hono } from "hono";
+import { bodyLimit } from "hono/body-limit";
 import { readFileSync, existsSync } from "node:fs";
 import { dirname, extname, join, normalize, resolve, sep } from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { fileURLToPath } from "node:url";
 import { describeCapabilities, loadConfig, type SentinelConfig } from "../core/config.ts";
 import { toSentinelError } from "../core/errors.ts";
 import { parseRepo } from "../core/github.ts";
 import { redactDeep, registerSecrets } from "../core/redact.ts";
+import { isEntrypoint, listenOrExit } from "../core/serve.ts";
 import { SentinelDb } from "./db.ts";
 import { Scanner } from "./scanner.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const SITE_ROOT = resolve(HERE, "..", "..", "site");
+
+/** Largest accepted JSON body. Bounds the memory one request can pin. */
+const MAX_BODY_BYTES = 1024 * 1024;
 
 const MIME: Record<string, string> = {
   ".html": "text/html; charset=utf-8",
@@ -38,9 +42,27 @@ const MIME: Record<string, string> = {
   ".txt": "text/plain; charset=utf-8",
 };
 
+/**
+ * Decode the path portion of a request URL, or null when it is malformed.
+ *
+ * `decodeURIComponent` throws on a malformed escape (`/%E0%A4%A`); an unhandled
+ * throw here would be a 500 at best and, in the dependency-free `site/serve.mjs`
+ * server, an uncaught exception that kills the process. Malformed input is a
+ * client error, so it degrades to null and the caller answers 404.
+ */
+export function decodeUrlPath(urlPath: string): string | null {
+  const bare = urlPath.split("?")[0]?.split("#")[0] ?? "";
+  try {
+    return decodeURIComponent(bare);
+  } catch {
+    return null;
+  }
+}
+
 /** Resolve a URL path inside the site directory, or null if it escapes. */
 function safeSitePath(urlPath: string): string | null {
-  const decoded = decodeURIComponent(urlPath.split("?")[0]?.split("#")[0] ?? "");
+  const decoded = decodeUrlPath(urlPath);
+  if (decoded === null) return null;
   const relative = normalize(decoded).replace(/^([/\\])+/, "");
   const full = resolve(SITE_ROOT, relative);
   if (full !== SITE_ROOT && !full.startsWith(SITE_ROOT + sep)) return null;
@@ -85,9 +107,13 @@ const MAX_MANIFEST_BYTES = 512 * 1024;
 function clientKey(c: { req: { header: (name: string) => string | undefined } }): string {
   // Behind the preview proxy the socket address is useless, so prefer the
   // forwarded chain and fall back to a constant (limits become global).
+  // The *last* entry of `x-forwarded-for` is the hop our own proxy appended;
+  // the first is client-supplied and trivially rotated to sidestep the limit.
   const forwarded = c.req.header("x-forwarded-for");
   if (forwarded !== undefined && forwarded.length > 0) {
-    return forwarded.split(",")[0]?.trim() ?? "unknown";
+    const hops = forwarded.split(",").map((h) => h.trim()).filter((h) => h.length > 0);
+    const nearest = hops.at(-1);
+    if (nearest !== undefined) return nearest;
   }
   return c.req.header("x-real-ip") ?? "local";
 }
@@ -102,6 +128,14 @@ export interface AppDeps {
 export function buildApp(deps: AppDeps): Hono {
   const { config, db, scanner } = deps;
   const app = new Hono();
+
+  // Cap every request body before any handler runs. The 512 KB manifest check
+  // below is about policy; this is about memory - `c.req.json()` reads the
+  // whole body before the handler gets a say.
+  app.use("/api/*", bodyLimit({ maxSize: MAX_BODY_BYTES, onError: (c) =>
+    c.json({ error: `Request body exceeds the ${Math.floor(MAX_BODY_BYTES / 1024)} KB limit.` }, 413),
+  }));
+
   const scanLimiter = new RateLimiter(10, 60_000);
 
   // ------------------------------------------------------------- health
@@ -189,8 +223,11 @@ export function buildApp(deps: AppDeps): Hono {
     const id = globalThis.crypto.randomUUID();
     db.createScan(id, source, target, manifest);
 
-    // Return immediately; the browser follows /events for progress.
-    void scanner.run(id);
+    // Return immediately; the browser follows /events for progress. `run()`
+    // never rejects (it owns its failure reporting), and this catch is the
+    // belt to those braces: an unexpected throw must not become an unhandled
+    // rejection that kills the process.
+    void scanner.run(id).catch(() => undefined);
 
     return c.json({ id, source, target, status: "queued" }, 202);
   });
@@ -218,7 +255,16 @@ export function buildApp(deps: AppDeps): Hono {
   });
 
   app.delete("/api/scans/:id", (c) => {
-    const removed = db.deleteScan(c.req.param("id"));
+    const id = c.req.param("id");
+    const scan = db.getScan(id);
+    if (scan === null) return c.json({ error: "No such scan." }, 404);
+    // Refuse to delete a scan that is queued or running: the pipeline writes
+    // progress as it goes, and yanking the row out from under it turns the
+    // delete into a race. Cancel-then-delete is a deliberate two-step.
+    if (scan.status === "queued" || scan.status === "running") {
+      return c.json({ error: "That scan is still in progress. Wait for it to finish first." }, 409);
+    }
+    const removed = db.deleteScan(id);
     return removed ? c.json({ deleted: true }) : c.json({ error: "No such scan." }, 404);
   });
 
@@ -245,6 +291,7 @@ export function buildApp(deps: AppDeps): Hono {
     const encoder = new TextEncoder();
     let unsubscribe: (() => void) | null = null;
     let heartbeat: NodeJS.Timeout | null = null;
+    let closed = false;
 
     const stream = new ReadableStream<Uint8Array>({
       start(controller) {
@@ -257,6 +304,18 @@ export function buildApp(deps: AppDeps): Hono {
             // Client vanished mid-write; the abort handler cleans up.
           }
         };
+        /** Push the terminal frame, then release the connection. */
+        const finish = (status: "done" | "failed"): void => {
+          push("end", { status });
+          if (heartbeat !== null) clearInterval(heartbeat);
+          unsubscribe?.();
+          closed = true;
+          try {
+            controller.close();
+          } catch {
+            // Already closed by the abort handler.
+          }
+        };
 
         // Replay first so a late subscriber sees the whole run, then follow.
         let lastSeq = 0;
@@ -267,20 +326,25 @@ export function buildApp(deps: AppDeps): Hono {
 
         const current = db.getScan(id);
         if (current !== null && (current.status === "done" || current.status === "failed")) {
-          push("end", { status: current.status });
+          // Nothing will ever arrive on the subscription: end the stream now
+          // instead of holding the socket open with heartbeats forever.
+          finish(current.status);
+          return;
         }
 
         unsubscribe = scanner.subscribe(id, (event) => {
-          if (event.seq <= lastSeq) return; // Already replayed.
+          if (closed || event.seq <= lastSeq) return; // Already replayed or finished.
           lastSeq = event.seq;
           push("progress", event);
           if (event.stage === "done" || event.stage === "error") {
-            push("end", { status: event.stage === "done" ? "done" : "failed" });
+            finish(event.stage === "done" ? "done" : "failed");
           }
         });
 
         // Proxies love to kill an idle SSE connection.
-        heartbeat = setInterval(() => push("ping", { t: Date.now() }), 15_000);
+        heartbeat = setInterval(() => {
+          if (!closed) push("ping", { t: Date.now() });
+        }, 15_000);
 
         c.req.raw.signal.addEventListener("abort", () => {
           if (heartbeat !== null) clearInterval(heartbeat);
@@ -333,7 +397,9 @@ export function buildApp(deps: AppDeps): Hono {
     const requested = new URL(c.req.url).pathname;
     const path = requested === "/" ? "/index.html" : requested;
     let full = safeSitePath(path);
-    if (full === null) return c.text("Forbidden", 403);
+    // null covers both traversal attempts and malformed escapes; answering
+    // "not found" to both leaks nothing and never 500s.
+    if (full === null) return c.text("Not found", 404);
 
     // Allow extensionless routes (/labs -> labs.html).
     if (!existsSync(full) && extname(full) === "") {
@@ -358,7 +424,7 @@ export function buildApp(deps: AppDeps): Hono {
   return app;
 }
 
-function main(): void {
+async function main(): Promise<void> {
   const config = loadConfig();
   registerSecrets([
     config.githubToken,
@@ -373,8 +439,13 @@ function main(): void {
   const app = buildApp({ config, db, scanner });
 
   const port = Number(process.env.PORT ?? config.webPort);
-  // 0.0.0.0 so a hosted preview can reach it.
-  serve({ fetch: app.fetch, port, hostname: "0.0.0.0" });
+  if (!Number.isInteger(port) || port < 1 || port > 65535) {
+    process.stderr.write(`PORT must be an integer between 1 and 65535, got "${process.env.PORT}"\n`);
+    process.exit(1);
+  }
+  // 0.0.0.0 so a hosted preview can reach it; a busy port exits with one
+  // clear line instead of a stack trace.
+  await listenOrExit(app, { port, label: "SENTINEL app" });
 
   const capabilities = describeCapabilities(config);
   process.stdout.write(`SENTINEL app on http://0.0.0.0:${port}\n`);
@@ -393,21 +464,9 @@ function main(): void {
   process.on("SIGTERM", shutdown);
 }
 
-function isEntrypoint(): boolean {
-  const entry = process.argv[1];
-  if (entry === undefined) return false;
-  try {
-    return import.meta.url === pathToFileURL(entry).href;
-  } catch {
-    return false;
-  }
-}
-
-if (isEntrypoint()) {
-  try {
-    main();
-  } catch (cause) {
+if (isEntrypoint(import.meta.url)) {
+  main().catch((cause: unknown) => {
     process.stderr.write(`fatal: ${toSentinelError(cause).message}\n`);
     process.exit(1);
-  }
+  });
 }

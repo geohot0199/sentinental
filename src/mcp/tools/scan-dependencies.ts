@@ -40,11 +40,17 @@ export const scanDependencies: ToolDefinition = {
       );
     }
 
-    // Try lockfiles in descending order of fidelity.
+    // Try lockfiles in descending order of fidelity. A missing file is a 404
+    // (null); any other failure must not abort the whole scan - the manifest
+    // alone still supports range-based estimates, with a warning.
     let lockRaw: string | null = null;
     let lockName: string | null = null;
     for (const candidate of ["package-lock.json", "npm-shrinkwrap.json"]) {
-      lockRaw = await ctx.github.getFile(ref, candidate, branch);
+      try {
+        lockRaw = await ctx.github.getFile(ref, candidate, branch);
+      } catch {
+        lockRaw = null; // Too large for the contents API, transient, or unreadable.
+      }
       if (lockRaw !== null) {
         lockName = candidate;
         break;

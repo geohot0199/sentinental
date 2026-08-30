@@ -55,7 +55,12 @@ export interface ApprovalDecision {
  * say "open_pull_request" instead of an opaque id. The harness sends the name on
  * the model.message that requested the call, and the id alone on the approval
  * event, so the correlation has to happen client-side.
+ *
+ * The maps are capped: a long session records a call per tool invocation, and
+ * approvals always concern recent calls, so evicting the oldest tail is safe.
  */
+const REGISTRY_CAP = 500;
+
 class ToolCallRegistry {
   readonly #names = new Map<string, string>();
   readonly #args = new Map<string, unknown>();
@@ -64,6 +69,7 @@ class ToolCallRegistry {
     if (id.length === 0) return;
     if (name.length > 0) this.#names.set(id, name);
     this.#args.set(id, args);
+    this.#evict();
   }
 
   has(id: string): boolean {
@@ -76,6 +82,21 @@ class ToolCallRegistry {
 
   args(id: string): unknown {
     return this.#args.get(id) ?? {};
+  }
+
+  /** Drop the oldest entries past the cap (Map iterates in insertion order). */
+  #evict(): void {
+    while (this.#names.size > REGISTRY_CAP) {
+      const oldest = this.#names.keys().next().value;
+      if (oldest === undefined) break;
+      this.#names.delete(oldest);
+      this.#args.delete(oldest);
+    }
+    while (this.#args.size > REGISTRY_CAP) {
+      const oldest = this.#args.keys().next().value;
+      if (oldest === undefined) break;
+      this.#args.delete(oldest);
+    }
   }
 }
 

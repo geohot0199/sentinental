@@ -63,21 +63,28 @@ async function askApprovals(
 
 async function bootstrap(config: SentinelConfig): Promise<SentinelRunner> {
   write(dim("  starting local tool server…"));
-  startMcpServer(config);
+  const mcp = await startMcpServer(config);
 
   write(dim("  provisioning the harness…"));
-  const result = await provision(config);
-  for (const step of result.steps) write(dim(`    · ${step}`));
-  for (const warning of result.warnings) write(yellow(`    ! ${warning}`));
+  try {
+    const result = await provision(config);
+    for (const step of result.steps) write(dim(`    · ${step}`));
+    for (const warning of result.warnings) write(yellow(`    ! ${warning}`));
 
-  write("");
-  write(
-    `  ${dim("model")} ${bold(result.modelFqn)}   ${dim("sandbox")} ${
-      result.sandboxEnabled ? green("on") : yellow("off")
-    }   ${dim("github")} ${config.githubToken !== null ? green("on") : yellow("off")}`,
-  );
+    write("");
+    write(
+      `  ${dim("model")} ${bold(result.modelFqn)}   ${dim("sandbox")} ${
+        result.sandboxEnabled ? green("on") : yellow("off")
+      }   ${dim("github")} ${config.githubToken !== null ? green("on") : yellow("off")}`,
+    );
 
-  return new SentinelRunner(config);
+    return new SentinelRunner(config);
+  } catch (cause) {
+    // Without this the listening MCP socket keeps the event loop alive and the
+    // process would hang forever after the error below is printed.
+    mcp.close();
+    throw cause;
+  }
 }
 
 async function main(): Promise<void> {
@@ -117,12 +124,16 @@ async function main(): Promise<void> {
 
   const rl = createInterface({ input: stdin, output: stdout });
 
-  // Ctrl-C cancels the running turn rather than killing the process, so a
-  // half-finished turn is not left running server-side.
-  let interrupted = false;
+  // Whether a turn is in flight. Ctrl-C means "cancel the turn" only while a
+  // turn is actually running; at an idle prompt the first Ctrl-C quits, which
+  // is what every terminal user expects.
+  let turnActive = false;
+  let forceQuit = false;
   rl.on("SIGINT", () => {
-    if (interrupted) process.exit(130);
-    interrupted = true;
+    if (forceQuit || !turnActive) {
+      process.exit(130);
+    }
+    forceQuit = true;
     write(yellow("\n  cancelling… (press Ctrl-C again to force quit)"));
     void runner.cancel();
   });
@@ -154,7 +165,8 @@ async function main(): Promise<void> {
       continue;
     }
 
-    interrupted = false;
+    turnActive = true;
+    forceQuit = false;
     try {
       await runner.send(input, sink);
 
@@ -171,11 +183,14 @@ async function main(): Promise<void> {
       write(red(`\n  ${error.message}`));
       if (error.remedy !== null) write(dim(`  ${error.remedy}`));
     }
+    turnActive = false;
     write("");
   }
 
   rl.close();
-  write(dim("\n  session preserved. reconnect with SENTINEL_SESSION_ID=" + (runner.sessionId ?? "")));
+  if (runner.sessionId !== null) {
+    write(dim(`\n  session preserved. reconnect with SENTINEL_SESSION_ID=${runner.sessionId}`));
+  }
   process.exit(0);
 }
 
