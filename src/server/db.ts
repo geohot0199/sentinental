@@ -99,7 +99,12 @@ CREATE INDEX IF NOT EXISTS idx_scans_created ON scans(created_at DESC);
 `;
 
 /** Narrow a raw sqlite row (Record<string, SQLOutputValue>) to a typed shape. */
-const str = (v: unknown): string => (typeof v === "string" ? v : String(v ?? ""));
+/** sqlite TEXT columns come back as `string`; only primitives are coerced. */
+const str = (v: unknown): string => {
+  if (typeof v === "string") return v;
+  if (typeof v === "number" || typeof v === "boolean") return String(v);
+  return "";
+};
 const strOrNull = (v: unknown): string | null => (typeof v === "string" ? v : null);
 const num = (v: unknown): number => (typeof v === "number" ? v : Number(v ?? 0));
 const numOrNull = (v: unknown): number | null => (typeof v === "number" ? v : null);
@@ -194,7 +199,7 @@ export class SentinelDb {
 
   getScan(id: string): ScanRow | null {
     const row = this.#db.prepare(`SELECT * FROM scans WHERE id = ?`).get(id);
-    return row === undefined ? null : toScan(row as Record<string, unknown>);
+    return row === undefined ? null : toScan(row);
   }
 
   /** Parsed JSON column, or null when absent/corrupt. */

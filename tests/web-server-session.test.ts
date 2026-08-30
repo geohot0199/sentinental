@@ -16,16 +16,22 @@ import { SentinelError } from "../src/core/errors.ts";
 import type { ProvisionResult } from "../src/harness/provision.ts";
 import type { PendingApproval, SentinelEvent } from "../src/harness/runner.ts";
 
+/**
+ * Function-typed properties rather than method shorthand on purpose: the mock
+ * object holds `vi.fn()` arrows, and the class below detaches them onto
+ * instance fields. Method shorthand would type that detachment as an unbound
+ * `this`, which is exactly what `unbound-method` reports.
+ */
 interface RunnerMock {
-  startSession(): Promise<string>;
-  send(message: string, sink: (event: SentinelEvent) => void): Promise<void>;
-  respondToApprovals(
+  startSession: () => Promise<string>;
+  send: (message: string, sink: (event: SentinelEvent) => void) => Promise<void>;
+  respondToApprovals: (
     decisions: readonly unknown[],
     sink: (event: SentinelEvent) => void,
-  ): Promise<void>;
-  cancel(): Promise<void>;
-  resumeSession(sessionId: string): Promise<void>;
-  history(sessionId: string): Promise<SentinelEvent[]>;
+  ) => Promise<void>;
+  cancel: () => Promise<void>;
+  resumeSession: (sessionId: string) => Promise<void>;
+  history: (sessionId: string) => Promise<SentinelEvent[]>;
   pendingApprovals: PendingApproval[];
   calls: string[];
 }

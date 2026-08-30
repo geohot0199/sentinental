@@ -145,10 +145,10 @@ function chunksFor(step: Step | undefined, index: number): unknown[] {
 }
 
 app.post("/v1/chat/completions", async (c) => {
-  const body = (await c.req.json()) as {
+  const body = await c.req.json<{
     stream?: boolean;
     messages?: { role: string; tool_call_id?: string }[];
-  };
+  }>();
   const messages = body.messages ?? [];
   // Count completed tool round-trips to decide where we are in the script.
   const completed = messages.filter((m) => m.role === "tool").length;

@@ -100,6 +100,17 @@ export function calculateShannonEntropy(str: string): number {
 }
 
 /**
+ * A manifest arrives from untrusted code under audit, and `JSON.parse` types it
+ * as `any`. Narrow the dependency map before it is spread, so a manifest with
+ * `"dependencies": "nope"` yields no dependencies rather than garbage nodes.
+ */
+function asDependencyMap(value: unknown): Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+/**
  * Deep static AST and heuristic pattern analyzer for code & dependency manifests.
  */
 // `_options` is accepted for call-site compatibility (the browser bundle passes
@@ -123,10 +134,18 @@ export function analyzeCveAst(
   const isJson = codeOrManifest.trim().startsWith('{');
   if (isJson) {
     try {
-      const parsed = JSON.parse(codeOrManifest);
-      const allDeps = { ...(parsed.dependencies || {}), ...(parsed.devDependencies || {}) };
-      
-      nodes.push({ id: 'root_pkg', label: parsed.name || 'Root Package', type: 'entry', severity: 'low', blastRadius: 20 });
+      const parsed = JSON.parse(codeOrManifest) as {
+        name?: unknown;
+        dependencies?: unknown;
+        devDependencies?: unknown;
+      };
+      const allDeps = {
+        ...asDependencyMap(parsed.dependencies),
+        ...asDependencyMap(parsed.devDependencies)
+      };
+
+      const pkgName = typeof parsed.name === 'string' && parsed.name.trim() ? parsed.name : 'Root Package';
+      nodes.push({ id: 'root_pkg', label: pkgName, type: 'entry', severity: 'low', blastRadius: 20 });
 
       for (const [dep, version] of Object.entries(allDeps)) {
         const verStr = String(version);

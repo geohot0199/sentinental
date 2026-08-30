@@ -33,11 +33,17 @@ a green local run is exactly what CI would report.
 ### Added
 
 - **An enforced lint gate.** `eslint.config.js` with
-  `@typescript-eslint`'s recommended rules plus `max-lines` (500),
-  `max-lines-per-function` (120), `max-depth` (4), `complexity` (20) and the
-  `no-eval` / `no-implied-eval` / `no-new-func` / `require-await` family.
+  `@typescript-eslint`'s *type-checked* recommended rules plus `max-lines`
+  (500), `max-lines-per-function` (120), `max-depth` (4), `complexity` (20) and
+  the `no-eval` / `no-implied-eval` / `no-new-func` / `require-await` family.
   `npm run lint` was already declared in `package.json` but there was no
   config, so it had never been able to run.
+- **`tests/eslint-gate.test.ts`** — runs the real ESLint against a fixture
+  containing an implicit `any` (`JSON.parse` → typed local → sink, with no
+  `any` token for `no-explicit-any` to see) and fails if the gate lets it
+  through, plus the counter-case that a narrowed read still passes. Written
+  because the config once documented a protection it was not providing, and
+  nothing failed.
 - **A lint step in the verify pipeline.** `ci/github-actions-ci.yml` now runs
   secret scan → typecheck → **lint (`--max-warnings=0`)** → tests →
   `npm audit --audit-level=high`.
@@ -77,14 +83,42 @@ Dead code the lint gate found, each of it a small lie the source was telling:
 - A dead `let answer = ""` initialisation in `src/cli/index.ts`.
 - A stale `eslint-disable no-control-regex` in `src/core/github.ts` for a rule
   that does not fire on a character class.
-- Three `any`s in the WebMCP tool contract (`src/webmcp/index.ts`), replaced
-  with `Record<string, any>` input validated against each tool's
-  `inputSchema` and `unknown` output.
+- Three `any`s in the WebMCP tool contract (`src/webmcp/index.ts`). The
+  interim `Record<string, any>` input was itself replaced later — see Fixed.
 - `async` from `queryGitHub` and the two entry-point `main`s that never
   awaited anything.
 
 ### Fixed
 
+- **`eslint.config.js` advertised a protection it did not have.** Its header
+  said `@typescript-eslint/no-unsafe-*` keeps untrusted tool input from
+  reaching GitHub writes, but it used `tseslint.configs.recommended` — the
+  preset that does *not* include those rules — and supplied no TypeScript
+  project, so no type information existed to lint against. A probe
+  (`JSON.parse(text).command` passed straight to a `string` parameter, with no
+  `any` written anywhere) exited 0. Now `recommendedTypeChecked` with
+  `projectService` and `tsconfigRootDir`, and the same probe fails with three
+  `no-unsafe-*` errors. `disableTypeChecked` is applied to `**/*.{js,mjs,cjs}`:
+  the preset installs its parser and its type-aware rules for every file, so
+  without that override ESLint aborted on `eslint.config.js` itself.
+
+  Turning the rules on found 93 real violations, all of them fixed rather than
+  waived:
+
+  - `src/webmcp/index.ts` — every `execute` took `Record<string, any>` and
+    handed fields straight to typed engine parameters. Now `Record<string,
+    unknown>` read through `asString` / `asNumber` / `asBoolean` / `asRecord` /
+    `asObjectArray`, so a malformed argument degrades to a default instead of
+    poisoning an analysis. The comment claimed "engines re-validate what they
+    need"; they did not.
+  - `src/webmcp/breachlab.ts` — `analyzeCveAst` spread `JSON.parse(manifest).
+    dependencies` from the very code it is auditing. Narrowed through
+    `asDependencyMap` and a checked `name`.
+  - `src/mcp/tools/` — `String(args.x ?? "")` on `unknown` arguments would
+    have produced `"[object Object]"` and fed it to a git ref or a GitHub URL;
+    now `asText` from `src/mcp/tools/shared.ts`.
+  - `src/core/redact.ts`, `src/server/db.ts`, `src/harness/runner.ts` —
+    remaining unsafe reads and casts the compiler already narrowed.
 - `analyzeCveAst` accepted an `options` argument and never read it, so every
   `{ checkSupplyChain: true }` at a call site did nothing. The parameter is
   now `_options` and the docs say supply-chain checks are unconditional.
@@ -100,12 +134,13 @@ config:
 | --- | --- | --- |
 | `src/harness/runner.ts` `#translate` | complexity 47, 139 lines | one `case` per harness event type; splitting it scatters the translation table |
 | `src/core/advisories.ts` `fromOsv` | complexity 24 | one linear walk of OSV's introduced/fixed event stream |
-| `src/webmcp/breachlab.ts` `analyzeCveAst`, `detonateSandbox` | complexity 24 / 23 | one branch per detection rule |
+| `src/webmcp/breachlab.ts` `analyzeCveAst` | complexity 23, 176 lines | one branch per detection rule |
+| `src/webmcp/breachlab.ts` `detonateSandbox` | complexity 23 | one branch per detonation intercept |
 | `src/webmcp/biosynth.ts` `simulateMutation` | complexity 27 | one branch per stability rule |
-| `src/server/api.ts` `buildApp`, `src/web/server.ts` `buildWebApp` | 209 / 173 lines | flat route tables |
+| `src/server/api.ts` `buildApp`, `src/web/server.ts` `buildWebApp` | 209 / 171 lines | flat route tables |
 
 No file currently trips `max-lines` — the largest is `src/webmcp/breachlab.ts`
-at 439 counted lines (550 physical, the gap being comments and blanks that
+at 452 counted lines (568 physical, the gap being comments and blanks that
 `max-lines` skips). It is the first file that will trip it, and the largest
 remaining target for a split. The hand-written browser bundles it is copied
 into (`src/web/public/`, `site/js/`) are excluded from the gate as vendored

@@ -85,6 +85,16 @@ export function assertWritesAllowed(ctx: ToolContext, action: string): void {
   }
 }
 
+/**
+ * Tool arguments are declared `Record<string, unknown>`, so `String(x)` would
+ * happily turn an object into `"[object Object]"` and hand that to a git ref or
+ * a GitHub URL. Read them through this instead: only a real string survives,
+ * everything else degrades to `fallback` and trips the caller's validation.
+ */
+export function asText(input: unknown, fallback = ""): string {
+  return typeof input === "string" ? input : fallback;
+}
+
 /** The `repo` argument, falling back to the configured default target. */
 export function resolveRepo(input: unknown, config: SentinelConfig): RepoRef {
   const raw = typeof input === "string" && input.trim().length > 0 ? input : config.targetRepo;

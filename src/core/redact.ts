@@ -93,7 +93,8 @@ export function redactDeep<T>(value: T, depth = 0): T {
   if (value === null || typeof value !== "object") return value;
 
   if (Array.isArray(value)) {
-    return value.map((item) => redactDeep(item, depth + 1)) as unknown as T;
+    const items: unknown[] = value;
+    return items.map((item) => redactDeep(item, depth + 1)) as unknown as T;
   }
 
   const out: Record<string, unknown> = {};
