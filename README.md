@@ -203,9 +203,14 @@ Every environment variable, in one table. Copy `.env.example` to `.env`, fill in
 | `SENTINEL_ALLOW_REMOTE_WRITES` | optional | Hard kill switch. `false` makes destructive tools refuse before any network call. |
 | `TRUEFORGE_URL` | optional | Harness URL. Default `http://127.0.0.1:8790`. |
 | `SENTINEL_MCP_PORT` | optional | Tool server port. Default `8791`. |
+| `SENTINEL_MCP_URL` | optional | URL the harness is given for the tool server. Set it when the harness cannot reach us on `127.0.0.1`. Default `http://127.0.0.1:<SENTINEL_MCP_PORT>/mcp`. |
 | `SENTINEL_WEB_PORT` | optional | Web console port. Default `3000`. |
+| `PORT` | optional | Port override read by the standalone API app (`npm run app`), falling back to `SENTINEL_WEB_PORT`, and by the landing-page server (`npm run site:dev`, default `4321`). |
+| `SENTINEL_DB` | optional | SQLite file for the API app's scan history. Default `.sentinel/sentinel.db`. |
 | `SENTINEL_MCP_TOKEN` | optional | Shared secret the harness uses to call SENTINEL's tool server. Unset means a fresh random token every boot. |
 | `SENTINEL_DEMO_MODEL_URL` | optional | Point at the bundled scripted model for a keyless demo run. |
+| `MOCK_MODEL_URL` | optional | Where `scripts/e2e-approval.ts` finds that scripted model. Default `http://127.0.0.1:8899/v1`. |
+| `NO_COLOR` | optional | Set to any value to force plain text in the CLI. Colour is already off when stdout is not a TTY. |
 
 Secrets never enter the repository or the model's context. Keys live in `.env` (git-ignored), are read once at provision time, handed to the harness over localhost, and stored by the harness. `npm run scan:secrets` runs in CI and fails the build on anything that looks like a live credential.
 
