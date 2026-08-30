@@ -136,14 +136,14 @@ export function buildWebApp(
     const id = c.req.param("id");
     const conversation = conversations.get(id);
     if (conversation === undefined) {
-      // Not in memory: rebuild from the harness, which is the real source.
+      // Not in memory: rebuild from the harness, which is the real source. A
+      // session the harness does not know either is a 404, not an empty
+      // transcript - the browser has to be able to tell the two apart.
       try {
-        const runner = new SentinelRunner(config);
-        await runner.resumeSession(id);
         const rebuilt = new Conversation(config);
         await rebuilt.runner.resumeSession(id);
+        const events = await rebuilt.runner.history(id);
         conversations.set(id, rebuilt);
-        const events = await runner.history(id);
         return c.json({ events: events.map((e) => redactDeep(e)) });
       } catch (cause) {
         return c.json({ error: toSentinelError(cause).message }, 404);
