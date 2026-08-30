@@ -439,13 +439,33 @@ export function detonateSandbox(
 /**
  * Taint Flow Tracer: tracks data propagation from untrusted source to sensitive sink.
  */
+/** Longest pattern accepted from the model; longer input is treated as absent. */
+const MAX_PATTERN_LENGTH = 200;
+
+/**
+ * Compile a caller/model-supplied pattern safely.
+ *
+ * The pattern arrives from the model, so it can be invalid (`SyntaxError` kills
+ * the whole tool call) or pathological (catastrophic backtracking pins the
+ * thread). Compile it in a try/catch, fall back to an escaped literal match,
+ * and cap the length.
+ */
+function safeRegex(pattern: string, fallback: string): RegExp {
+  const trimmed = pattern.length <= MAX_PATTERN_LENGTH ? pattern : fallback;
+  try {
+    return new RegExp(trimmed, 'i');
+  } catch {
+    return new RegExp(trimmed.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+  }
+}
+
 export function traceTaintFlow(code: string, sourcePattern?: string, sinkPattern?: string) {
   const lines = code.split('\n');
   const source = sourcePattern || 'req.query|req.body|process.env|userInput';
   const sink = sinkPattern || 'eval|exec|execSync|spawn|fs.writeFile|net.connect';
 
-  const sourceRegex = new RegExp(source, 'i');
-  const sinkRegex = new RegExp(sink, 'i');
+  const sourceRegex = safeRegex(source, 'req\\.query|req\\.body|process\\.env|userInput');
+  const sinkRegex = safeRegex(sink, 'eval|exec|execSync|spawn|fs\\.writeFile|net\\.connect');
 
   const traceSteps: { line: number; type: 'SOURCE' | 'PROPAGATION' | 'SINK'; text: string; variable?: string }[] = [];
   const trackedVars = new Set<string>();

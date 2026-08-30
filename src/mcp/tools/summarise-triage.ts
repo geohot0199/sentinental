@@ -5,6 +5,15 @@ import { SentinelError } from "../../core/errors.ts";
 import { classifyBump } from "../../core/semver.ts";
 import { readOnly, type ToolDefinition } from "./shared.ts";
 
+/** One advisory match. Declared once: the MCP schema and the handler guard below must not drift. */
+const matchSchema = z.object({
+  packageName: z.string(),
+  installedVersion: z.string(),
+  severity: z.enum(["critical", "high", "moderate", "low", "unknown"]),
+  advisoryId: z.string(),
+  firstPatchedVersion: z.string().nullable().optional(),
+});
+
 export const triageSummary: ToolDefinition = {
   name: "summarise_triage",
   description:
@@ -13,30 +22,12 @@ export const triageSummary: ToolDefinition = {
   annotations: { ...readOnly("Summarise triage"), openWorldHint: false },
   inputSchema: {
     matches: z
-      .array(
-        z.object({
-          packageName: z.string(),
-          installedVersion: z.string(),
-          severity: z.enum(["critical", "high", "moderate", "low", "unknown"]),
-          advisoryId: z.string(),
-          firstPatchedVersion: z.string().nullable().optional(),
-        }),
-      )
+      .array(matchSchema)
       .min(1)
       .describe("Advisory matches, typically from lookup_advisories."),
   },
   handler(args) {
-    const parsed = z
-      .array(
-        z.object({
-          packageName: z.string(),
-          installedVersion: z.string(),
-          severity: z.enum(["critical", "high", "moderate", "low", "unknown"]),
-          advisoryId: z.string(),
-          firstPatchedVersion: z.string().nullable().optional(),
-        }),
-      )
-      .safeParse(args.matches);
+    const parsed = z.array(matchSchema).safeParse(args.matches);
     if (!parsed.success) {
       throw new SentinelError("invalid_input", "`matches` is malformed.");
     }

@@ -9,6 +9,12 @@ import { SentinelError, toSentinelError } from "../../core/errors.ts";
 import { isValidPackageName } from "../../core/manifest.ts";
 import { MAX_ADVISORY_PACKAGES, readOnly, type ToolDefinition } from "./shared.ts";
 
+/** One {name, version} pair. Declared once: the MCP schema and the handler guard must not drift. */
+const packageVersionSchema = z.object({
+  name: z.string().describe("Package name, e.g. lodash"),
+  version: z.string().describe("Installed version, e.g. 4.17.11"),
+});
+
 export const lookupAdvisoriesTool: ToolDefinition = {
   name: "lookup_advisories",
   description:
@@ -18,12 +24,7 @@ export const lookupAdvisoriesTool: ToolDefinition = {
   annotations: readOnly("Look up security advisories"),
   inputSchema: {
     packages: z
-      .array(
-        z.object({
-          name: z.string().describe("Package name, e.g. lodash"),
-          version: z.string().describe("Installed version, e.g. 4.17.11"),
-        }),
-      )
+      .array(packageVersionSchema)
       .min(1)
       .max(MAX_ADVISORY_PACKAGES)
       .describe(`Packages to check (max ${MAX_ADVISORY_PACKAGES} per call).`),
@@ -33,9 +34,7 @@ export const lookupAdvisoriesTool: ToolDefinition = {
       .describe("Drop advisories below this severity. Default: low (report everything)."),
   },
   async handler(args, ctx) {
-    const parsed = z
-      .array(z.object({ name: z.string(), version: z.string() }))
-      .safeParse(args.packages);
+    const parsed = z.array(packageVersionSchema).safeParse(args.packages);
     if (!parsed.success) {
       throw new SentinelError("invalid_input", "`packages` must be a list of {name, version}.");
     }

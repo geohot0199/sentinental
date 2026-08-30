@@ -18,6 +18,22 @@ import {
 (function () {
   'use strict';
 
+  /**
+   * Escape a value for interpolation into an innerHTML template.
+   *
+   * Some engine outputs (e.g. MetaLoop's injected step `toolName`) originate
+   * from model-supplied tool arguments, so anything interpolated into markup
+   * goes through here first: text, never live HTML.
+   */
+  function esc(value) {
+    return String(value ?? '')
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#39;');
+  }
+
   // =========================================================================
   // 1. WebMCP STANDARD PROTOCOL INITIALIZATION
   // =========================================================================
@@ -399,9 +415,9 @@ app.post('/api/webhook', (req, res) => {
       const div = document.createElement('div');
       div.className = 'pocket-card';
       div.innerHTML = `
-        <h4>${p.id} · Druggability: <strong>${p.druggabilityScore}</strong></h4>
-        <p>${p.description}</p>
-        <p style="margin-top: 4px; font-size: 0.75rem; color: #94a3b8;">Lining Residues: ${p.liningResidues.map((r) => `${r.name}${r.seq}`).join(', ')}</p>
+        <h4>${esc(p.id)} · Druggability: <strong>${esc(p.druggabilityScore)}</strong></h4>
+        <p>${esc(p.description)}</p>
+        <p style="margin-top: 4px; font-size: 0.75rem; color: #94a3b8;">Lining Residues: ${esc(p.liningResidues.map((r) => `${r.name}${r.seq}`).join(', '))}</p>
       `;
       grid.appendChild(div);
     });
@@ -534,10 +550,10 @@ app.post('/api/webhook', (req, res) => {
       div.className = 'feed-item';
       div.innerHTML = `
         <div class="feed-info">
-          <h4>${feed.sourceName} <span class="live-tag">${feed.cameraType}</span></h4>
-          <p>Pos: (${feed.geoPosition.x}m, ${feed.geoPosition.y}m, ${feed.geoPosition.z}m) · ${feed.recordedFps} FPS · Optical Flash: ${feed.opticalEvents[0]?.timestampSec}s</p>
+          <h4>${esc(feed.sourceName)} <span class="live-tag">${esc(feed.cameraType)}</span></h4>
+          <p>Pos: (${esc(feed.geoPosition.x)}m, ${esc(feed.geoPosition.y)}m, ${esc(feed.geoPosition.z)}m) · ${esc(feed.recordedFps)} FPS · Optical Flash: ${esc(feed.opticalEvents[0]?.timestampSec)}s</p>
         </div>
-        <div class="feed-offset">${sync.calculatedOffsetMs >= 0 ? '+' : ''}${sync.calculatedOffsetMs} ms</div>
+        <div class="feed-offset">${sync.calculatedOffsetMs >= 0 ? '+' : ''}${esc(sync.calculatedOffsetMs)} ms</div>
       `;
       list.appendChild(div);
     });
@@ -669,13 +685,13 @@ app.post('/api/webhook', (req, res) => {
       div.className = `trace-node ${step.status === 'LOOP_DETECTED' ? 'loop' : step.status === 'SUCCESS' && step.parentId && step.parentId.includes('syn') ? 'forked' : ''}`;
       div.innerHTML = `
         <div class="trace-meta">
-          <span>${step.stepId} · <strong>${step.agentRole.toUpperCase()}</strong> [${step.actionType}]</span>
-          <span class="status-pill ${step.status === 'LOOP_DETECTED' ? 'danger' : 'success'}">${step.status}</span>
+          <span>${esc(step.stepId)} · <strong>${esc(step.agentRole.toUpperCase())}</strong> [${esc(step.actionType)}]</span>
+          <span class="status-pill ${step.status === 'LOOP_DETECTED' ? 'danger' : 'success'}">${esc(step.status)}</span>
         </div>
         <div class="trace-text">
-          ${step.toolName ? `<strong>Tool Call:</strong> <code>${step.toolName}</code>` : ''}
-          ${step.thoughtSummary ? `<div>${step.thoughtSummary}</div>` : ''}
-          <div style="font-size: 0.72rem; color: #64748b; margin-top: 4px;">Tokens: ${step.tokenCost} · Entropy: ${step.entropyScore}</div>
+          ${step.toolName ? `<strong>Tool Call:</strong> <code>${esc(step.toolName)}</code>` : ''}
+          ${step.thoughtSummary ? `<div>${esc(step.thoughtSummary)}</div>` : ''}
+          <div style="font-size: 0.72rem; color: #64748b; margin-top: 4px;">Tokens: ${esc(step.tokenCost)} · Entropy: ${esc(step.entropyScore)}</div>
         </div>
       `;
       container.appendChild(div);
@@ -751,10 +767,10 @@ app.post('/api/webhook', (req, res) => {
       div.className = 'milestone-item';
       div.innerHTML = `
         <div>
-          <h4>${m.title}</h4>
-          <p>Payout: $${m.payoutAmountUsd} USD · Target SHA-256: ${m.expectedFileSha256.slice(0, 12)}...</p>
+          <h4>${esc(m.title)}</h4>
+          <p>Payout: $${esc(m.payoutAmountUsd)} USD · Target SHA-256: ${esc(m.expectedFileSha256.slice(0, 12))}...</p>
         </div>
-        <span class="status-pill ${m.status === 'RELEASED' ? 'success' : m.status === 'VERIFIED' ? 'highlight' : ''}">${m.status}</span>
+        <span class="status-pill ${m.status === 'RELEASED' ? 'success' : m.status === 'VERIFIED' ? 'highlight' : ''}">${esc(m.status)}</span>
       `;
       list.appendChild(div);
     });
@@ -815,6 +831,33 @@ app.post('/api/webhook', (req, res) => {
   async function runAgentMission(prompt) {
     const stream = document.getElementById('agentExecutionStream');
     if (!stream) return;
+
+    // Every tool call below is awaited inside this guard: a refusing tool must
+    // surface in the transcript, not vanish as an unhandled rejection with the
+    // stream left silently dead.
+    try {
+      await runAgentMissionInner(prompt, stream);
+    } catch (error) {
+      appendAssistantError(stream, error);
+    }
+  }
+
+  function appendAssistantError(stream, error) {
+    const asstMsg = document.createElement('div');
+    asstMsg.className = 'agent-msg assistant';
+    const meta = document.createElement('div');
+    meta.className = 'msg-meta';
+    meta.textContent = 'WEBMCP AUTONOMOUS AGENT';
+    const body = document.createElement('div');
+    body.className = 'msg-body';
+    body.textContent = `Tool call failed: ${error && error.message ? error.message : 'unknown error'}`;
+    asstMsg.appendChild(meta);
+    asstMsg.appendChild(body);
+    stream.appendChild(asstMsg);
+    stream.scrollTop = stream.scrollHeight;
+  }
+
+  async function runAgentMissionInner(prompt, stream) {
 
     // Operator-controlled prompt text is inserted with textContent, never
     // innerHTML, so markup or event handlers in the input cannot execute.

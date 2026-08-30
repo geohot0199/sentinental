@@ -8,6 +8,106 @@ with one command rather than taken on trust.
 
 ## Unreleased
 
+### Security & robustness hardening (quality pass)
+
+A dedicated review pass over every server, the terminal client and the WebMCP
+engines. Each fix below names the test that proves it; the whole set lives in
+`tests/hardening.test.ts` and `tests/web-server-queue.test.ts`.
+
+**Crashes fixed**
+
+- **Deleting a scan mid-run killed the API process.** The pipeline writes
+  progress rows under a foreign key on `scans`; a concurrent `DELETE` made
+  `Scanner.run()` throw `FOREIGN KEY constraint failed` out of a `void`-launched
+  promise — an unhandled rejection, which terminates Node. `run()` now notices
+  the vanished row and stops quietly, and the HTTP handler keeps a belt-and-
+  braces `.catch`. Proven by: `tests/hardening.test.ts` ("resolves quietly when
+  the scan row vanishes mid-run").
+- **A malformed URL escape killed the landing-page server.** `GET /%E0%A4%A`
+  threw `URIError` inside `site/serve.mjs`'s async handler — an uncaught
+  exception. Both static servers now decode safely and answer 404; the API app
+  was a 500, now a 404. Proven by: the hostile-path cases in
+  `tests/hardening.test.ts`.
+- **A bootstrap failure hung the terminal client forever.** The CLI started its
+  MCP tool server, then failed provisioning — and returned from `main()` with
+  the listening socket still holding the event loop open. The handle is now
+  closed on the failure path; the CLI exits 1 with the remedy in well under a
+  second.
+- **A busy port crashed each server with a raw `EADDRINUSE` stack.** All three
+  listeners (MCP, web console, scan API) now boot through
+  `src/core/serve.ts::listenOrExit`, which prints one actionable line and exits
+  non-zero. `isEntrypoint` moved there with it — and takes the caller's
+  `import.meta.url` as a parameter, because a shared helper comparing *its own*
+  URL silently disabled every entrypoint (pinned by
+  `tests/hardening.test.ts` "isEntrypoint").
+
+**Vulnerabilities closed**
+
+- **The escrow tool handed out its own signing key.** `zkescrow_initiate_
+  contract` returned `arbiterSecretKey`, so whoever could call the tool could
+  forge arbiter release proofs. The catalog result now carries a fingerprint
+  only; the engine keeps the real key for `signEscrowRelease`. Proven by:
+  `tests/hardening.test.ts` "zkescrow_initiate_contract key redaction".
+- **Rate limiting was keyed on a spoofable header.** `clientKey` took the
+  *first* `x-forwarded-for` entry — client-supplied, trivially rotated. It now
+  keys on the *last* hop (the one the trusted proxy appended), falling back to
+  `x-real-ip`. Proven by: the rotation test in `tests/hardening.test.ts`.
+- **Request bodies were unbounded.** `c.req.json()` reads the whole body before
+  the 512 KB manifest check could speak. Both HTTP apps now mount hono's
+  `bodyLimit` (1 MB) and answer 413. Proven by: "answers 413 for an oversized
+  manifest" in `tests/hardening.test.ts`.
+- **Model-controlled HTML reached `innerHTML`.** The web console's trace-tree
+  renderer interpolated `step.toolName` — which `metaloop_inject_synthetic_
+  tool` takes from the model — straight into markup. All dynamic
+  interpolations in the console's templates now go through an `esc()` helper.
+- **The MCP bearer check leaked the token's length** through its early return.
+  It now compares SHA-256 digests with `crypto.timingSafeEqual`.
+- **A model-supplied regex could throw or hang the caller.** `breachlab_trace_
+  taint_flow` compiled `sourcePattern`/`sinkPattern` unguarded: an invalid
+  pattern raised `SyntaxError`, a pathological one backtracked the thread.
+  Patterns are length-capped and compiled with an escaped-literal fallback.
+  The fix is mirrored into both browser bundles. Proven by: the hostile-pattern
+  cases in `tests/hardening.test.ts`.
+- **Failed tool calls died silently in the agent cockpit.** A rejecting
+  `invokeTool` left an unhandled rejection and a dead transcript; the mission
+  runner now renders the error into the stream.
+
+**Race and lifecycle fixes**
+
+- **Approvals raced the closing turn stream.** The web console rejected any
+  second submission while a turn was in flight — but the approval-required
+  event arrives *before* the stream closes, so a quick decision was dropped.
+  `Conversation` now runs a serialized queue: messages get an immediate 409
+  while busy, approvals are queued and applied in order, and a failed unit does
+  not poison the queue. Proven by: `tests/web-server-queue.test.ts`.
+- **Deleting a queued or running scan is refused with 409** instead of racing
+  the pipeline; finished scans delete as before.
+- **SSE streams for finished scans now close** after the terminal `end` frame
+  instead of holding the socket with 15-second heartbeats forever.
+- **The web console evicts idle conversations** past 100 sessions instead of
+  pinning a runner and replay buffer per session forever, and `POST /api/
+  session` is rate limited (each create burns harness-side quota).
+
+**Cleanups**
+
+- `redact()` cached its longest-first secret ordering: it had re-sorted the
+  secret set on every call, including every streamed delta frame.
+- `SentinelRunner`'s tool-call registry is capped at 500 entries instead of
+  growing for the life of the session.
+- `scan_dependencies` tolerates a failed lockfile fetch (falling back to
+  manifest ranges with a warning) like the scan pipeline already did.
+- `fetchCatalog` in `src/harness/provision.ts` goes through the hardened
+  `httpJson` wrapper instead of a raw `fetch`.
+- The duplicated zod schemas in `lookup_advisories`, `propose_patch` and
+  `summarise_triage` are declared once and shared by the MCP schema and the
+  handler guard, so they cannot drift.
+- The terminal's Ctrl-C semantics: at an idle prompt the first Ctrl-C quits;
+  during a turn it cancels the turn and a second Ctrl-C force-quits (it used
+  to claim "cancelling…" while nothing was running). The goodbye line only
+  advertises `SENTINEL_SESSION_ID` when a session exists.
+
+## Previous release
+
 ### Open — needs a permission this project's automation does not have
 
 **The CI pipeline is written and verified locally, but it does not run.** It

@@ -4,6 +4,12 @@ import { notConfigured, SentinelError } from "../../core/errors.ts";
 import { isValidPackageName } from "../../core/manifest.ts";
 import { readOnly, resolveRepo, type ToolDefinition } from "./shared.ts";
 
+/** One {name, toVersion} pair. Declared once: the MCP schema and the handler guard must not drift. */
+const upgradeSchema = z.object({
+  name: z.string().describe("Package to upgrade."),
+  toVersion: z.string().describe("Target version, without a range prefix."),
+});
+
 export const proposePatch: ToolDefinition = {
   name: "propose_patch",
   description:
@@ -15,12 +21,7 @@ export const proposePatch: ToolDefinition = {
     repo: z.string().optional().describe('Repository as "owner/name".'),
     branch: z.string().optional().describe("Branch to read package.json from."),
     upgrades: z
-      .array(
-        z.object({
-          name: z.string().describe("Package to upgrade."),
-          toVersion: z.string().describe("Target version, without a range prefix."),
-        }),
-      )
+      .array(upgradeSchema)
       .min(1)
       .max(50)
       .describe("Upgrades to apply."),
@@ -28,10 +29,7 @@ export const proposePatch: ToolDefinition = {
   async handler(args, ctx) {
     if (!ctx.github.configured) throw notConfigured("GitHub access", "GITHUB_TOKEN");
     const ref = resolveRepo(args.repo, ctx.config);
-    const parsed = z
-      .array(z.object({ name: z.string(), toVersion: z.string() }))
-      .min(1)
-      .safeParse(args.upgrades);
+    const parsed = z.array(upgradeSchema).min(1).safeParse(args.upgrades);
     if (!parsed.success) {
       throw new SentinelError("invalid_input", "`upgrades` must be a list of {name, toVersion}.");
     }

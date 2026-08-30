@@ -35,7 +35,16 @@ const MIME = {
 
 /** Resolve a URL path inside ROOT, or null if it tries to escape. */
 function safePath(urlPath) {
-  const decoded = decodeURIComponent(urlPath.split("?")[0].split("#")[0]);
+  // decodeURIComponent throws URIError on a malformed escape (/%E0%A4%A), and
+  // an async handler that throws becomes an uncaughtException that kills the
+  // server. A bad path is a client error: degrade to null and answer 404.
+  const bare = urlPath.split("?")[0].split("#")[0];
+  let decoded;
+  try {
+    decoded = decodeURIComponent(bare);
+  } catch {
+    return null;
+  }
   const relative = normalize(decoded).replace(/^([/\\])+/, "");
   const full = resolve(ROOT, relative);
   if (full !== ROOT && !full.startsWith(ROOT + sep)) return null;
@@ -52,7 +61,7 @@ const server = createServer(async (req, res) => {
   let filePath = safePath(urlPath);
 
   if (filePath === null) {
-    res.writeHead(403).end("Forbidden");
+    res.writeHead(404, { "content-type": "text/plain; charset=utf-8" }).end("Not found");
     return;
   }
 

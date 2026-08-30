@@ -11,11 +11,11 @@
  *  - Sessions are per-connection objects in memory; the durable state lives in
  *    the harness, so a browser refresh replays from there rather than from us.
  */
-import { serve } from "@hono/node-server";
 import { Hono } from "hono";
+import { bodyLimit } from "hono/body-limit";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { fileURLToPath } from "node:url";
 import {
   describeCapabilities,
   loadConfig,
@@ -23,11 +23,17 @@ import {
 } from "../core/config.ts";
 import { toSentinelError } from "../core/errors.ts";
 import { redactDeep, registerSecrets } from "../core/redact.ts";
+import { isEntrypoint, listenOrExit } from "../core/serve.ts";
 import { provision, type ProvisionResult } from "../harness/provision.ts";
 import { SentinelRunner, type SentinelEvent } from "../harness/runner.ts";
 import { startMcpServer } from "../mcp/server.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
+
+/** Largest accepted JSON body (session messages are capped well below this). */
+const MAX_BODY_BYTES = 1024 * 1024;
+/** Live conversations kept in memory before the oldest is evicted. */
+const MAX_CONVERSATIONS = 100;
 
 /**
  * One live conversation. Holds the runner plus a fan-out list of SSE listeners
@@ -38,14 +44,23 @@ class Conversation {
   readonly #listeners = new Set<(event: SentinelEvent) => void>();
   /** Replay buffer so a reconnecting tab sees what it missed. */
   readonly #log: SentinelEvent[] = [];
-  #busy = false;
+  /**
+   * Serialised work queue. Two turns on one session is a protocol error, but
+   * rejecting a second submission outright loses it: an approval decision can
+   * legitimately arrive while the paused turn's event stream is still closing.
+   * Enqueueing keeps the ordering guarantee without dropping work.
+   */
+  #chain: Promise<void> = Promise.resolve();
+  #queued = 0;
+  /** Touched on every enqueue; drives eviction of idle conversations. */
+  lastActivityAt = Date.now();
 
   constructor(config: SentinelConfig) {
     this.runner = new SentinelRunner(config);
   }
 
   get busy(): boolean {
-    return this.#busy;
+    return this.#queued > 0;
   }
 
   get log(): readonly SentinelEvent[] {
@@ -71,24 +86,90 @@ class Conversation {
     }
   }
 
-  /** Serialise turns: two concurrent turns on one session is a protocol error. */
-  async run(work: () => Promise<void>): Promise<void> {
-    if (this.#busy) {
-      throw new Error("This session is already running a turn.");
-    }
-    this.#busy = true;
-    try {
-      await work();
-    } finally {
-      this.#busy = false;
-    }
+  /**
+   * Queue `work` to run after everything already queued on this session.
+   * Resolves when this unit finishes; rejects only if this unit itself threw -
+   * an earlier failure does not poison the queue.
+   */
+  enqueue(work: () => Promise<void>): Promise<void> {
+    this.lastActivityAt = Date.now();
+    this.#queued += 1;
+    const run = this.#chain.then(work, work);
+    // Keep the chain alive regardless of this unit's outcome.
+    this.#chain = run.catch(() => undefined);
+    void run.then(
+      () => {
+        this.#queued -= 1;
+      },
+      () => {
+        this.#queued -= 1;
+      },
+    );
+    return run;
   }
 }
 
 const conversations = new Map<string, Conversation>();
 
+/**
+ * Drop the oldest idle conversations when the map outgrows its cap.
+ *
+ * Every `POST /api/session` pins a runner and a replay buffer forever; without
+ * this, a long-running console leaks memory one demo at a time. Eviction is
+ * harmless: the harness holds the durable history, so an evicted session is
+ * rebuilt on demand by the history route.
+ */
+function rememberConversation(id: string, conversation: Conversation): void {
+  conversations.set(id, conversation);
+  if (conversations.size <= MAX_CONVERSATIONS) return;
+
+  const idle = [...conversations.entries()]
+    .filter(([, c]) => !c.busy)
+    .sort((a, b) => a[1].lastActivityAt - b[1].lastActivityAt);
+  let excess = conversations.size - MAX_CONVERSATIONS;
+  for (const [key] of idle) {
+    if (excess <= 0) break;
+    conversations.delete(key);
+    excess -= 1;
+  }
+}
+
 function sseFrame(event: string, data: unknown): string {
   return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+}
+
+/** Fixed-window limiter for creating sessions (each one hits the harness). */
+class SessionLimiter {
+  readonly #hits = new Map<string, { count: number; resetAt: number }>();
+
+  check(key: string, limit: number, windowMs: number): { ok: boolean; retryAfter: number } {
+    const now = Date.now();
+    const entry = this.#hits.get(key);
+    if (entry === undefined || now > entry.resetAt) {
+      this.#hits.set(key, { count: 1, resetAt: now + windowMs });
+      return { ok: true, retryAfter: 0 };
+    }
+    if (entry.count >= limit) {
+      return { ok: false, retryAfter: Math.ceil((entry.resetAt - now) / 1000) };
+    }
+    entry.count += 1;
+    return { ok: true, retryAfter: 0 };
+  }
+}
+
+const sessionLimiter = new SessionLimiter();
+
+/** Best-effort client identity for rate limiting (see the API app's notes). */
+function clientKey(c: { req: { header: (name: string) => string | undefined } }): string {
+  // The *last* XFF hop is the one our own proxy appended; the first is
+  // client-supplied and trivially rotated.
+  const forwarded = c.req.header("x-forwarded-for");
+  if (forwarded !== undefined && forwarded.length > 0) {
+    const hops = forwarded.split(",").map((h) => h.trim()).filter((h) => h.length > 0);
+    const nearest = hops.at(-1);
+    if (nearest !== undefined) return nearest;
+  }
+  return c.req.header("x-real-ip") ?? "local";
 }
 
 // eslint-disable-next-line max-lines-per-function -- flat route table; splitting it moves it out of review
@@ -98,6 +179,19 @@ export function buildWebApp(
   provisionError: string | null,
 ): Hono {
   const app = new Hono();
+
+  // Bound request memory before any handler reads a body.
+  app.use(
+    "/api/*",
+    bodyLimit({
+      maxSize: MAX_BODY_BYTES,
+      onError: (c) =>
+        c.json(
+          { error: `Request body exceeds the ${Math.floor(MAX_BODY_BYTES / 1024)} KB limit.` },
+          413,
+        ),
+    }),
+  );
 
   // ------------------------------------------------------------- status
   app.get("/api/status", (c) => {
@@ -120,10 +214,20 @@ export function buildWebApp(
     if (provisionError !== null) {
       return c.json({ error: provisionError }, 503);
     }
+    // Each session is a harness-side object; creating them in a loop burns
+    // upstream quota, so create is rate limited per client.
+    const limit = sessionLimiter.check(clientKey(c), 10, 60_000);
+    if (!limit.ok) {
+      return c.json(
+        { error: `Too many sessions. Try again in ${limit.retryAfter}s.` },
+        429,
+        { "retry-after": String(limit.retryAfter) },
+      );
+    }
     try {
       const conversation = new Conversation(config);
       const sessionId = await conversation.runner.startSession();
-      conversations.set(sessionId, conversation);
+      rememberConversation(sessionId, conversation);
       return c.json({ sessionId });
     } catch (cause) {
       const error = toSentinelError(cause);
@@ -143,7 +247,7 @@ export function buildWebApp(
         const rebuilt = new Conversation(config);
         await rebuilt.runner.resumeSession(id);
         const events = await rebuilt.runner.history(id);
-        conversations.set(id, rebuilt);
+        rememberConversation(id, rebuilt);
         return c.json({ events: events.map((e) => redactDeep(e)) });
       } catch (cause) {
         return c.json({ error: toSentinelError(cause).message }, 404);
@@ -214,11 +318,16 @@ export function buildWebApp(
     const message = typeof body.message === "string" ? body.message.trim() : "";
     if (message.length === 0) return c.json({ error: "A message is required." }, 400);
     if (message.length > 20_000) return c.json({ error: "Message is too long." }, 413);
+    if (conversation.busy) {
+      // A second message mid-turn is a genuine caller bug: say so immediately
+      // rather than accepting and failing later on the SSE stream.
+      return c.json({ error: "This session is already running a turn." }, 409);
+    }
 
     // Kick the turn off in the background and return immediately; the browser
     // is already watching the SSE stream, so blocking here buys nothing.
     void conversation
-      .run(async () => {
+      .enqueue(async () => {
         conversation.emit({ kind: "assistant", text: `> ${message}`, threadId: "user" });
         await conversation.runner.send(message, (event) => conversation.emit(event));
       })
@@ -263,8 +372,10 @@ export function buildWebApp(
       return c.json({ error: "None of those approvals are pending." }, 409);
     }
 
+    // Enqueued, not rejected: this POST can legitimately race the turn stream
+    // closing after the approval-required event. The queue applies it next.
     void conversation
-      .run(async () => {
+      .enqueue(async () => {
         await conversation.runner.respondToApprovals(decisions, (event) =>
           conversation.emit(event),
         );
@@ -315,7 +426,7 @@ async function main(): Promise<void> {
     config.provider?.apiKey,
   ]);
 
-  startMcpServer(config);
+  await startMcpServer(config);
   process.stdout.write(`SENTINEL tool server on http://127.0.0.1:${config.mcpPort}/mcp\n`);
 
   let provisioning: ProvisionResult | null = null;
@@ -331,22 +442,13 @@ async function main(): Promise<void> {
   }
 
   const app = buildWebApp(config, provisioning, provisionError);
-  // 0.0.0.0 so the hosted preview can reach it.
-  serve({ fetch: app.fetch, port: config.webPort, hostname: "0.0.0.0" });
+  // 0.0.0.0 so the hosted preview can reach it; a busy port exits with one
+  // clear line instead of a stack trace.
+  await listenOrExit(app, { port: config.webPort, label: "SENTINEL console" });
   process.stdout.write(`SENTINEL console on http://0.0.0.0:${config.webPort}\n`);
 }
 
-function isEntrypoint(): boolean {
-  const entry = process.argv[1];
-  if (entry === undefined) return false;
-  try {
-    return import.meta.url === pathToFileURL(entry).href;
-  } catch {
-    return false;
-  }
-}
-
-if (isEntrypoint()) {
+if (isEntrypoint(import.meta.url)) {
   main().catch((cause: unknown) => {
     process.stderr.write(`fatal: ${toSentinelError(cause).message}\n`);
     process.exit(1);

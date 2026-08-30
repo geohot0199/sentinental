@@ -402,8 +402,19 @@ export const BreachLab = {
     const source = sourcePattern || 'req.query|req.body|process.env|userInput';
     const sink = sinkPattern || 'eval|exec|execSync|spawn|fs.writeFile|net.connect';
 
-    const sourceRegex = new RegExp(source, 'i');
-    const sinkRegex = new RegExp(sink, 'i');
+    // The pattern comes from the model: invalid regexes must not throw and
+    // pathological ones must not pin the thread. Compile safely, falling back
+    // to an escaped literal match, with a length cap.
+    function safeRegex(pattern, fallback) {
+      const capped = pattern.length <= 200 ? pattern : fallback;
+      try {
+        return new RegExp(capped, 'i');
+      } catch {
+        return new RegExp(capped.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+      }
+    }
+    const sourceRegex = safeRegex(source, 'req\.query|req\.body|process\.env|userInput');
+    const sinkRegex = safeRegex(sink, 'eval|exec|execSync|spawn|fs\.writeFile|net\.connect');
 
     const traceSteps = [];
     const trackedVars = new Set();

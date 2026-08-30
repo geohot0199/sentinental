@@ -11,6 +11,7 @@
 import { TrueForge, type TrueForgeApi } from "@truefoundry/trueforge-sdk";
 import type { SentinelConfig } from "../core/config.ts";
 import { SentinelError } from "../core/errors.ts";
+import { httpJson } from "../core/http.ts";
 import { AGENT_NAME, buildAgentSpec, MCP_SERVER_NAME } from "./agent-spec.ts";
 
 export interface ProvisionResult {
@@ -55,13 +56,12 @@ interface CatalogProvider {
 }
 
 async function fetchCatalog(config: SentinelConfig): Promise<CatalogProvider[]> {
-  const response = await fetch(`${config.harnessUrl}/api/v1/catalogs/model-providers`, {
-    signal: AbortSignal.timeout(10_000),
-  });
-  if (!response.ok) {
-    throw new SentinelError("upstream_failure", `Model catalog unavailable (HTTP ${response.status}).`);
-  }
-  const body = (await response.json()) as { data?: CatalogProvider[] };
+  // Through the hardened wrapper, like every other outbound call: bounded
+  // response size, retries, and typed errors instead of a bare socket message.
+  const body = await httpJson<{ data?: CatalogProvider[] }>(
+    `${config.harnessUrl}/api/v1/catalogs/model-providers`,
+    { timeoutMs: 10_000 },
+  );
   return body.data ?? [];
 }
 
