@@ -2,7 +2,7 @@
 
 # SENTINEL
 
-**An autonomous supply-chain CVE strike team, built on the [TrueForge](https://github.com/truefoundry/trueforge) agent harness.**
+**An autonomous supply-chain CVE strike team, built on the [TrueForge](https://github.com/truefoundry/trueforge) agent harness.**  You can use chatgpt or any ai agent that is webmcp compatible to use sentinel. This is probably the best use of Trueforge, our ui is also premium and code quality is production, and company level. check it out 
 
 *It reads your dependency tree, triages every advisory against the versions you actually ship, works out how risky each fix is, prepares the patch — and then **stops and asks a human** before it opens the pull request.*
 
@@ -37,6 +37,8 @@
 15. [Included: the WebMCP OMNI-LAB demo](#included-the-webmcp-omni-lab-demo)
 16. [FAQ](#faq)
 17. [License](#license)
+
+
 18.qodo is usefull in pr #8, pr #5 you can check for more deatils
 ---
 
