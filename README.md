@@ -40,6 +40,14 @@
 
 
 18.qodo is usefull in pr #8, pr #5 you can check for more deatils
+
+
+Web mcp in chatgpt 
+
+1.open chatgpt desktop app
+2. go to setting->general->advance setting
+3.click on the developer mode and start it 
+4.thwn create the mcp paste the mcp url then you are godd to go. 
 ---
 
 ## The problem
