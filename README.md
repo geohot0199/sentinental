@@ -38,12 +38,10 @@
 16. [FAQ](#faq)
 17. [License](#license)
 
-
 18.qodo is usefull in pr #8, pr #5 you can check for more deatils
 
 
-Web mcp in chatgpt 
-
+###Web mcp in chatgpt 
 1.open chatgpt desktop app
 2. go to setting->general->advance setting
 3.click on the developer mode and start it 
