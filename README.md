@@ -45,7 +45,7 @@
 1.open chatgpt desktop app
 2. go to setting->general->advance setting
 3.click on the developer mode and start it 
-4.thwn create the mcp paste the mcp url then you are godd to go. 
+4.then create the mcp paste the mcp url then you are good to go. 
 ---
 
 ## The problem
